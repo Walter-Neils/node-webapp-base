@@ -19,29 +19,28 @@ export async function readBodyAsString(req: IncomingMessage)
         });
     });
 }
+export async function readBodyAsJSON<T>(req: IncomingMessage)
+{
+    const body = await readBodyAsString(req);
+    return JSON.parse(body) as T;
+}
 
-export async function readBodyAsBuffer(req: IncomingMessage)
+export async function readBodyAsBinary(req: IncomingMessage)
 {
     return new Promise<Buffer>((resolve, reject) =>
     {
-        let body = Buffer.alloc(0);
+        let body: Buffer[] = [];
         req.on('data', chunk =>
         {
-            body = Buffer.concat([ body, chunk ]);
+            body.push(chunk);
         });
         req.on('end', () =>
         {
-            resolve(body);
+            resolve(Buffer.concat(body));
         });
         req.on('error', err =>
         {
             reject(err);
         });
     });
-}
-
-export async function readBodyAsJSON<T>(req: IncomingMessage)
-{
-    const body = await readBodyAsString(req);
-    return JSON.parse(body) as T;
 }

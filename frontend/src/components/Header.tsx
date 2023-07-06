@@ -48,9 +48,11 @@ export default function Header(props: IHeaderProps)
                                 }
                             </IconButton>
                         }
-                        <Typography variant="h6" component="div" sx={ { display: { xs: 'none', sm: 'block' } } } noWrap>
-                            { props.title }
-                        </Typography>
+                        <Slide in={ true }>
+                            <Typography variant="h6" component="div" sx={ { display: { xs: 'none', sm: 'block' } } } noWrap>
+                                { props.title }
+                            </Typography>
+                        </Slide>
                         {/* Slight Padding */ }
                         <Box sx={ { flexGrow: 0.01 } } />
                         { props.leftSideContent }

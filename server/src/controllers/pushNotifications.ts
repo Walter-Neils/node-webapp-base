@@ -1,20 +1,35 @@
-import webpush from "web-push";
-import { route } from "./server.ts";
 import { IncomingMessage, ServerResponse } from "http";
-import { readBodyAsJSON } from "./bodyReaders.ts";
+import webpush, { PushSubscription } from "web-push";
+import { getMongoDatabase } from "../core/database/databaseConnectors.js";
+import { ServerPersistentStorage } from "../core/database/serverPersistentStorage.js";
+import { readBodyAsJSON } from "../core/request-response-helpers/bodyReaders.js";
+import { route } from "../core/server/server.js";
 
-// Disable formatting for this line (batch script relies on it being a single line)
-// prettier-ignore
-const vapidKeys = { publicKey: "BBYTQzpXh5GeTd-Z-wFL86u6k2Xp0YZCJ0aixaKU_I7IqABtQE588DyxoqWy4Cmvg0S3s017dGUH1UhM4tb0gUc", privateKey: "5EtasBNJwn0Mx0xr4wcEFV93Fv18zxa3DGKHaEMm1ug" };
+const vapidKeys = {
+    publicKey: await ServerPersistentStorage.getConfigurationValue("vapid-public-key", "enter-vapid-keys-here"),
+    privateKey: await ServerPersistentStorage.getConfigurationValue("vapid-private-key", "enter-vapid-keys-here")
+};
 
 
 webpush.setVapidDetails(
-    'mailto:test@localhost',
+    await ServerPersistentStorage.getConfigurationValue("vapid-subject", 'mailto:test@localhost'),
     vapidKeys.publicKey,
     vapidKeys.privateKey
 );
 
-const subscriptions = new Set<any>();
+const subscriptionsCollection = (await getMongoDatabase('Server')).collection<PushSubscription>('push-notification-subscriptions');
+
+const addSubscription = async (subscription: any) =>
+{
+    await subscriptionsCollection.insertOne(subscription);
+};
+
+const removeSubscription = async (subscription: any) =>
+{
+    await subscriptionsCollection.deleteOne(subscription);
+};
+
+const log = await ServerPersistentStorage.useLogger("Push Notification Controller");
 
 export interface IPushNotificationPayload
 {
@@ -25,7 +40,7 @@ export interface IPushNotificationPayload
     data?: any;
 }
 
-export async function sendPushNotification(subscription: any, payload: IPushNotificationPayload)
+export async function sendPushNotification(subscription: PushSubscription, payload: IPushNotificationPayload)
 {
     try
     {
@@ -40,7 +55,7 @@ export async function sendPushNotification(subscription: any, payload: IPushNoti
 
 export async function notifyAll(payload: IPushNotificationPayload)
 {
-    for (const subscription of subscriptions)
+    for (const subscription of await subscriptionsCollection.find({}).toArray())
     {
         await sendPushNotification(subscription, payload);
     }
@@ -54,11 +69,11 @@ class PushNotificationController
     {
         notifyAll({
             title: "New Subscriber",
-            body: `A new subscriber has been added to the list (${subscriptions.size} total)`,
+            body: `A new subscriber has been added to the list`,
         });
         // Get pushSubscription object
         const subscription = await readBodyAsJSON<any>(req);
-        subscriptions.add(subscription);
+        addSubscription(subscription);
         res.statusCode = 201;
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -69,7 +84,7 @@ class PushNotificationController
     @route({ pathRegex: /^\/api\/notification\/test/ })
     public async Test(req: IncomingMessage, res: ServerResponse)
     {
-        for (const subscription of subscriptions)
+        for (const subscription of await subscriptionsCollection.find({}).toArray())
         {
             sendPushNotification(subscription, {
                 title: "Sensor Outage Detected",
@@ -81,8 +96,8 @@ class PushNotificationController
                 // Remove the subscription if it's no longer valid
                 if (err.statusCode === 410)
                 {
-                    subscriptions.delete(subscription);
-                    console.log(`Subscription ${subscription.endpoint} has expired and has been removed`);
+                    removeSubscription(subscription);
+                    log('warn', `Subscription ${subscription.endpoint} has expired and has been removed from the list`);
                 }
             });
         }

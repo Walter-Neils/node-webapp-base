@@ -1,11 +1,13 @@
 import { IncomingMessage, ServerResponse } from "http";
 import path from "path";
-import { HTTPInternalRedirect, HTTPRequestFallthroughError, route } from "./server.ts";
 import fs from 'fs';
-import { getContentType } from "./fileContentTypeResolver.ts";
-import { ServerPersistentStorage } from "./serverPersistentStorage.ts";
+import { ServerPersistentStorage } from "../core/database/serverPersistentStorage.js";
+import { getContentType } from "../core/request-response-helpers/fileContentTypeResolver.js";
+import { HTTPRequestFallthrough, HTTPInternalRedirect } from "../core/server/requestPathOperators.js";
+import { route } from "../core/server/server.js";
+import { Controller } from "../core/server/controller.js";
 
-class StaticSiteServer
+class StaticSiteServer extends Controller
 {
     // Match any path that doesn't start with '/api'
     @route({ pathRegex: /^(?!\/api).+$/, priority: -999 })
@@ -14,16 +16,35 @@ class StaticSiteServer
         // If the path begins with '/api', then we don't want to serve the react site
         if (req.url?.startsWith('/api'))
         {
-            throw new HTTPRequestFallthroughError('Request should be handled by the API server');
+            throw new HTTPRequestFallthrough('Request should be handled by the API server');
+        }
+
+
+        // If the request has a header X-Request-Source = 'grafana', redirect the url to '/api/grafana/...'
+        if (req.headers[ 'x-request-source' ] === 'grafana')
+        {
+            let newURL = '/api/grafana' + req.url;
+            if (newURL.endsWith('/'))
+            {
+                newURL = newURL.substr(0, newURL.length - 1);
+            }
+            throw new HTTPInternalRedirect(newURL);
+        }
+
+        // If the path ends with .gltf or .bin, set the cache control to 1 year
+        if (req.url?.endsWith('.gltf') || req.url?.endsWith('.bin'))
+        {
+            res.setHeader('Cache-Control', 'max-age=31536000');
         }
 
         // If we didn't find anything, send the site back
         // The react site is located at ../../react/build
-        const siteRoot = path.join(await ServerPersistentStorage.getConfigurationValue<string>("site-build-root", '../frontend/build'));
-        const isReactValid = fs.existsSync(siteRoot + '/index.html');
+        const react_root = path.join(await ServerPersistentStorage.getConfigurationValue<string>("react-build-root",
+            '../react/build'));
+        const isReactValid = fs.existsSync(react_root + '/index.html');
         if (isReactValid)
         {
-            let requestedPath = path.join(siteRoot, req.url ?? 'index.html');
+            let requestedPath = path.join(react_root, req.url ?? 'index.html');
             if (req.url?.endsWith('/'))
             {
                 requestedPath = path.join(requestedPath, 'index.html');
@@ -36,7 +57,7 @@ class StaticSiteServer
             else
             {
                 // If the file doesn't exist, send the index.html
-                await this.sendFile(res, siteRoot + '/index.html');
+                await this.sendFile(res, react_root + '/index.html');
             }
 
             res.end();
@@ -44,7 +65,7 @@ class StaticSiteServer
         }
         // Dev server runs on port 3001
         // Attempt to proxy to the dev server
-        const devServer = await ServerPersistentStorage.getConfigurationValue<string>("site-dev-server", "http://127.0.0.1:3000");
+        const devServer = await ServerPersistentStorage.getConfigurationValue<string>("react-dev-server", "http://127.0.0.1:3001");
         try
         {
             const targetUrl = devServer + req.url ?? '';
@@ -60,9 +81,11 @@ class StaticSiteServer
         }
         catch (e: any)
         {
-            res.write(`No react site found at ${siteRoot}\n`);
+            res.write(`No react site found at ${react_root}\n`);
             res.write(`Unable to proxy to dev server at ${devServer}\n`);
             res.write(`Failed to serve ${req.url}\n`);
+            // Write the current working directory
+            res.write(`Current working directory: ${process.cwd()}\n`);
             res.statusCode = 500;
         }
 
@@ -82,6 +105,7 @@ class StaticSiteServer
         try
         {
             await this.sendFile(res, requestedPath);
+            res.end();
         }
         catch (e: any)
         {
@@ -92,6 +116,11 @@ class StaticSiteServer
 
     public async sendFile(res: ServerResponse, requestedPath: string)
     {
+        const lastModified = fs.statSync(requestedPath).mtime;
+        res.setHeader('Last-Modified', lastModified.toUTCString());
+        // Set cache control to the number of seconds since the last modified date
+        const cacheControl = Math.floor((new Date().getTime() - lastModified.getTime()) / 1000);
+        res.setHeader('Cache-Control', `max-age=${cacheControl}`);
         const content = fs.readFileSync(requestedPath);
         const typeOfContent = getContentType(requestedPath);
         res.setHeader('Content-Type', typeOfContent);

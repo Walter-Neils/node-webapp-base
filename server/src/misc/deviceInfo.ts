@@ -1,5 +1,6 @@
 import * as os from 'os';
-import hash from './shared/hash.ts';
+import hash from '../shared/hash.js';
+
 
 export interface IDeviceCapabilities
 {

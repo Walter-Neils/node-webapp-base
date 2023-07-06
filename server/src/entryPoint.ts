@@ -1,7 +1,13 @@
 import fs from 'fs';
 import path from 'path';
-import { ServerPersistentStorage } from './serverPersistentStorage.ts';
-const log = ServerPersistentStorage.useLogger("Entry Point");
+import { availableParallelism } from 'node:os';
+import { ServerPersistentStorage } from './core/database/serverPersistentStorage.js';
+import { __startServer } from './core/server/server.js';
+import cluster from 'node:cluster';
+import { delay } from './shared/delay.js';
+import { Worker } from 'cluster';
+
+const log = await ServerPersistentStorage.useLogger("Entry Point");
 
 interface ITarget
 {
@@ -12,24 +18,9 @@ interface ITarget
 
 let targets = [
     {
-        path: "./server.ts",
-        name: "Server Core",
-        description: "Handles HTTP requests and routes them to the appropriate handler."
-    },
-    {
-        path: "./serverLoad.ts",
-        name: "Host Load",
-        description: "Handles requests for server load."
-    },
-    {
-        path: "./pushNotifications.ts",
-        name: "Push Notifications",
-        description: "Handles requests for push notifications."
-    },
-    {
-        path: "./staticSiteServer.ts",
-        name: "Static Site Server",
-        description: "Serves static files from the react page."
+        path: "./core/externalInitialization.js",
+        name: "External Initialization",
+        description: "Downloads and initializes external data."
     },
 ];
 
@@ -37,25 +28,95 @@ targets = await ServerPersistentStorage.getConfigurationValue<ITarget[]>("init-m
 
 log('info', `Starting server with ${targets.length} modules...`, targets);
 
-const serverStart = Date.now();
+let targetParallelism: number = await ServerPersistentStorage.getConfigurationValue<number>("target-parallelism", availableParallelism());
 
-
-for (const target of targets)
+const workerOperation = async () =>
 {
-    try
+    const serverStart = Date.now();
+
+
+    for (const target of targets)
     {
-        await import(target.path);
+        try
+        {
+            await import(target.path);
+        }
+        catch (e: any)
+        {
+            log('error', `Failed to load module '${target.name}'`, {
+                error: e.message,
+                path: target.path
+            });
+        }
     }
-    catch (e: any)
+
+    __startServer();
+    log('info', `Server started in ${Date.now() - serverStart}ms`);
+};
+
+// Check if node's --inspect flag is set
+const isDebugging = process.execArgv.some((arg) => arg.includes('--inspect'));
+if (isDebugging)
+{
+    log('info', 'Debugging mode detected, starting single-threaded...');
+    // Start single-threaded to allow deterministic debugging
+    await workerOperation();
+}
+else if (cluster.isPrimary)
+{
+    let clusters: {
+        id: number;
+        worker: Worker;
+    }[] = [];
+    const startWorkers = async () =>
     {
-        console.error(`[LOADER] Failed to load module '${target.name}'`);
-        console.error(e);
-        log('error', `Failed to load module '${target.name}'`, e.message);
+        log('info', `Starting server with ${targetParallelism} parallel processes...`);
+        for (let i = 0; i < targetParallelism; i++)
+        {
+            const worker = cluster.fork({
+                ...process.env,
+                CLUSTER_ID: i
+            });
+            clusters.push({
+                id: i,
+                worker: worker
+            });
+
+            worker.on('exit', async (code, signal) =>
+            {
+                log('info', `Worker ${i} died with code ${code} and signal ${signal}`);
+                // If the config value 'restart-cluster-on-failure' is set to true, restart the cluster
+                if (await ServerPersistentStorage.getConfigurationValue<boolean>("restart-cluster-on-failure", false))
+                {
+                    log('info', `Restarting cluster ${i}...`);
+                    const newWorker = cluster.fork({
+                        ...process.env,
+                        CLUSTER_ID: i
+                    });
+                    clusters[ i ].worker = newWorker;
+                }
+            });
+        }
+    };
+    await startWorkers();
+    while (true)
+    {
+        await delay(60000);
+        if (await ServerPersistentStorage.getConfigurationValue<boolean>('server-restart-flag', false))
+        {
+            await ServerPersistentStorage.setConfigurationValue('server-restart-flag', false);
+            log('info', 'Restarting server...');
+            for (const cluster of clusters)
+            {
+                cluster.worker.kill();
+            }
+            clusters = [];
+            await startWorkers();
+            await log('info', 'Server restarted: server-restart-flag was set to true');
+        }
     }
 }
-
-log('info', `Server started in ${Date.now() - serverStart}ms`);
-
-const ipAddressFetchPath = 'https://ipinfo.io/ip';
-const ipAddress = await (await fetch(ipAddressFetchPath)).text();
-log('info', `Server IP address: ${ipAddress}`);
+else
+{
+    workerOperation();
+}
