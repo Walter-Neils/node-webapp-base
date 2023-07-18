@@ -56,8 +56,6 @@ export function route(config: {
     const { pathRegex, methods, priority = 0 } = config;
     return function (target: any, propertyKey: string, descriptor: PropertyDescriptor)
     {
-
-        const targetName = target.constructor.name;
         const newHandler: PathHandler = {
             pathRegex,
             handler: async (x, y, controllerArgs: ControllerArgs) =>
@@ -238,6 +236,10 @@ for (const portNum of port)
 
         const controllerArgs: ControllerArgs = {
             liftResponseTimeRestriction: () => { clearTimeout(failureTimeout); },
+            connection: {
+                request: req,
+                response: res
+            }
         };
 
         const addTimingContext = (name: string, value: any) => context[ name ] = value;

@@ -1,7 +1,12 @@
+import { IncomingMessage, ServerResponse } from "node:http";
+
 export class Controller
 {
     private mContextValues: Map<string, any> = new Map();
     private args: ControllerArgs;
+
+    public get request() { return this.args.connection.request; }
+    public get response() { return this.args.connection.response; };
 
     public constructor(args: ControllerArgs)
     {
@@ -60,6 +65,10 @@ export class Controller
 
 export type ControllerArgs = {
     liftResponseTimeRestriction: () => void;
+    connection: {
+        request: IncomingMessage,
+        response: ServerResponse;
+    };
 };
 
 export enum ControllerContextOffset
