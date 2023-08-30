@@ -1,0 +1,38 @@
+version: '2'
+services:
+  mongodb:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+
+  frontend: 
+    image: frontend:latest
+    networks:
+      default:
+        aliases:
+          - frontend
+
+  backend:
+    image: backend:latest
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URL=mongodb://root:example@mongodb:27017
+    hostname: dev
+    networks:
+      default:
+        aliases:
+          - backend
+
+  router:
+    image: router:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+
+networks:
+  default:
