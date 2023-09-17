@@ -3,46 +3,99 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Buffer } from 'buffer';
 
 export type URLMappedValueConfiguration<T> = {
+    /**
+     * The key of the URL parameter.
+     */
     key: string;
 } & {
+    /**
+     * The behaviour of the browser history when the value is changed.
+     */
     navigationBehaviour: 'keep' | 'replace';
 } & (
         {
+            /**
+             * The behaviour when the URL parameter is not set. 
+             */
             nullBehaviour: 'default';
+            /**
+             * The default value to use when the URL parameter is not set.
+             */
             defaultValue: T;
         }
         | {
+            /**
+             * The behaviour when the URL parameter is not set.
+             */
             nullBehaviour: 'throw';
         } | {
+            /**
+             * The behaviour when the URL parameter is not set.
+             */
             nullBehaviour: 'allow';
         }
     ) & (
         {
+            /**
+             * The behaviour to use when the value is initialized
+             */
             initializationBehaviour: 'default';
+            /**
+             * The default value to use when the value is initialized.
+             */
             defaultValue: T;
         } | ({
+            /**
+             * The behaviour to use when the value is initialized
+             */
             initializationBehaviour: 'load-from-url';
         } & (
                 {
+                    /**
+                     * The behaviour when the URL parameter is not set during initialization.
+                     */
                     initializationValueMissingBehaviour: 'null';
                 } | {
+                    /**
+                     * The behaviour when the URL parameter is not set during initialization.
+                     */
                     initializationValueMissingBehaviour: 'throw';
                 }
             ))
     ) & (
         {
+            /**
+             * How the value is stored in the URL.
+             */
             valueMode: 'json';
         } | {
+            /**
+             * How the value is stored in the URL.
+             */
             valueMode: 'base64';
         } | {
+            /**
+             * How the value is stored in the URL.
+             */
             valueMode: 'string';
         } | {
+            /**
+             * How the value is stored in the URL.
+             */
             valueMode: 'number';
         } | {
+            /**
+             * 
+             */
             valueMode: 'boolean';
         }
     );
 
+/**
+ * Creates a state value that is mapped to a URL parameter.
+ * @param configuration The configuration for the URL mapped value.
+ * @returns A tuple containing the current value and a function to set the value.
+ */
 export function useURLMappedStateValue<T>(configuration: URLMappedValueConfiguration<T>): [ T, (value: T) => void ]
 {
     const location = useLocation();
@@ -194,6 +247,7 @@ export function useURLMappedStateValue<T>(configuration: URLMappedValueConfigura
         const newUrl = `${location.pathname}?${urlParams.toString()}`;
         navigate(newUrl, { replace: configuration.navigationBehaviour === 'replace' });
 
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ currentValue ]);
 
     return [ currentValue, setCurrentValue ];
