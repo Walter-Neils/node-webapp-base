@@ -1,214 +1,202 @@
-import React, { useCallback, useEffect } from "react";
+import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Buffer } from 'buffer';
 
-export function useURLMappedBooleanStateValue(key: string, defaultValue?: boolean)
-{
-    return useURLMappedStateValue<boolean>(key, (value) =>
-    {
-        return value ? "true" : "false";
-    }, (value) =>
-    {
-        if (value === undefined || value === null)
+export type URLMappedValueConfiguration<T> = {
+    key: string;
+} & {
+    navigationBehaviour: 'keep' | 'replace';
+} & (
         {
-            if (defaultValue === undefined)
-            {
-                throw new Error(`Failed to load URL mapped state value: '${key}' was not present in the URL, and no default was specified.`);
-            }
-            return defaultValue;
+            nullBehaviour: 'default';
+            defaultValue: T;
         }
-        else
-            return value === "true";
-    });
-}
-
-export function useURLMappedArrayStateValue<T>(key: string, defaultValue?: T[])
-{
-    return useURLMappedStateValue<T[]>(key, (value) =>
-    {
-        return JSON.stringify(value);
-    }, (value) =>
-    {
-        if (value === undefined || value === null)
+        | {
+            nullBehaviour: 'throw';
+        } | {
+            nullBehaviour: 'allow';
+        }
+    ) & (
         {
-            if (defaultValue === undefined)
-            {
-                throw new Error(`Failed to load URL mapped state value: '${key}' was not present in the URL, and no default was specified.`);
-            }
-            return defaultValue;
+            initializationBehaviour: 'default';
+            defaultValue: T;
+        } | ({
+            initializationBehaviour: 'load-from-url';
+        } & (
+                {
+                    initializationValueMissingBehaviour: 'null';
+                } | {
+                    initializationValueMissingBehaviour: 'throw';
+                }
+            ))
+    ) & (
+        {
+            valueMode: 'json';
+        } | {
+            valueMode: 'base64';
+        } | {
+            valueMode: 'string';
+        } | {
+            valueMode: 'number';
+        } | {
+            valueMode: 'boolean';
         }
-        else
-            return JSON.parse(value) as T[];
-    });
-}
+    );
 
-export function useURLMappedStateValue<T>(
-    key: string,
-    serializer?: (value: T) => string,
-    deserializer?: (value?: string) => T
-)
+export function useURLMappedStateValue<T>(configuration: URLMappedValueConfiguration<T>): [ T, (value: T) => void ]
 {
     const location = useLocation();
+
+    const urlParams = React.useMemo(() =>
+    {
+        return new URLSearchParams(location.search);
+    }, [ location.search ]);
+
+    const initializeValue = React.useCallback(() =>
+    {
+        if (configuration.initializationBehaviour === 'load-from-url')
+        {
+            const value = urlParams.get(configuration.key);
+            if (value === null)
+            {
+                if (configuration.initializationValueMissingBehaviour === 'null')
+                {
+                    return null;
+                }
+                else if (configuration.initializationValueMissingBehaviour === 'throw')
+                {
+                    throw new Error(`URL parameter ${configuration.key} is missing`);
+                }
+            }
+            else
+            {
+                if (configuration.valueMode === 'json')
+                {
+                    return JSON.parse(value);
+                }
+                else if (configuration.valueMode === 'base64')
+                {
+                    const decoded = Buffer.from(value, "base64").toString("utf-8");
+                    return JSON.parse(decoded);
+                }
+                else if (configuration.valueMode === 'string')
+                {
+                    return value;
+                }
+                else if (configuration.valueMode === 'number')
+                {
+                    return Number(value);
+                }
+                else if (configuration.valueMode === 'boolean')
+                {
+                    return value === 'true';
+                }
+            }
+        }
+        else if (configuration.initializationBehaviour === 'default')
+        {
+            return configuration.defaultValue;
+        }
+        // Need to disable ESLINT because otherwise it complains about not referencing disciminated fields
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ configuration.initializationBehaviour, configuration.valueMode, configuration.key, urlParams ]);
+
+    const [ currentValue, setCurrentValue ] = React.useState<T>(initializeValue);
+
     const navigate = useNavigate();
 
-    const serialize = useCallback(
-        (value: T) =>
-        {
-            if (serializer) return serializer(value);
-            else if (value === undefined || value === null)
-            {
-                throw new Error(`Attempted to serialize undefined/null value for key '${key}'. If you want to allow undefined/null values, you must provide a custom serializer and deserializer.`);
-            }
-            return JSON.stringify(value);
-        },
-        [ serializer, key ]
-    );
-
-    const deserialize = useCallback(
-        (value?: string) =>
-        {
-            if (deserializer) return deserializer(value);
-            else if (value === undefined || value === null)
-            {
-                throw new Error(`Attempted to deserialize undefined/null value for key '${key}'. If you want to allow undefined/null values, you must provide a custom serializer and deserializer.`);
-            }
-            return JSON.parse(value) as T;
-        },
-        [ deserializer, key ]
-    );
-
-    const [ value, setValue ] = React.useState<T>(() =>
-    {
-        const params = new URLSearchParams(location.search);
-        let value: string | null | undefined = params.get(key);
-        if (value === null)
-        {
-            value = undefined;
-        }
-        const transformedValue = deserialize(value);
-        return transformedValue;
+    const liveState = React.useRef({
+        syncFromURLDisabled: configuration.initializationBehaviour === 'load-from-url',
+        syncToURLDisabled: false
     });
 
-    const [ wasLastValueOurs, setWasLastValueOurs ] = React.useState<boolean>(true);
-
-    useEffect(() =>
+    React.useEffect(() =>
     {
-        if (wasLastValueOurs)
+        if (liveState.current.syncFromURLDisabled)
         {
-            setWasLastValueOurs(false);
+            liveState.current.syncFromURLDisabled = false;
             return;
         }
-        console.log(`Loading ${key} from URL`);
 
-        const params = new URLSearchParams(location.search);
-        let value: string | null | undefined = params.get(key);
+        const value = urlParams.get(configuration.key);
         if (value === null)
         {
-            value = undefined;
-        }
-        const transformedValue = deserialize(value);
-        setValue(transformedValue);
-        // setIgnored(x => x + 1);
-    }, [ location, deserialize, key, wasLastValueOurs ]);
-
-    useEffect(() =>
-    {
-        setWasLastValueOurs(true);
-
-        const params = new URLSearchParams(location.search);
-        const serializedValue = serialize(value);
-        if (serializedValue === undefined || serializedValue === null)
-        {
-            params.delete(key);
-        } else
-        {
-            params.set(key, serializedValue);
-        }
-        // If the new params are the same as the old params, then don't navigate
-        if (params.toString() !== location.search)
-        {
-            console.log(`Saving ${key} to URL`);
-            navigate(`?${params.toString()}`, { replace: true });
-        }
-    }, [ value, key, location, navigate, serialize ]);
-
-    return [ value, setValue ] as const;
-}
-
-
-export function useURLMappedBase64Value<T>(key: string, defaultValue?: T)
-{
-    key = Buffer.from(key).toString("base64");
-    return useURLMappedStateValue<T>(key, (value) =>
-    {
-        const stringRepresentation = JSON.stringify(value);
-        const encoded = Buffer.from(stringRepresentation).toString("base64");
-        return encoded;
-    }, (value) =>
-    {
-        if (value === undefined || value === null)
-        {
-            if (defaultValue === undefined)
+            if (configuration.nullBehaviour === 'throw')
             {
-                throw new Error(`Failed to load URL mapped state value: '${key}' was not present in the URL, and no default was specified.`);
+                throw new Error(`URL parameter ${configuration.key} is missing`);
             }
-            return defaultValue;
-        }
-        else
-        {
-            const decoded = Buffer.from(value, "base64").toString("utf-8");
-            const parsed = JSON.parse(decoded);
-            return parsed as T;
-        }
-    });
-}
-
-export function useURLMappedBase64Number(key: string, defaultValue?: number)
-{
-    key = Buffer.from(key).toString("base64");
-    return useURLMappedStateValue<number>(key, (value) =>
-    {
-        const stringRepresentation = value.toString();
-        const encoded = Buffer.from(stringRepresentation).toString("base64");
-        return encoded;
-    }, (value) =>
-    {
-        if (value === undefined || value === null)
-        {
-            if (defaultValue === undefined)
+            else if (configuration.nullBehaviour === 'default')
             {
-                throw new Error(`Failed to load URL mapped state value: '${key}' was not present in the URL, and no default was specified.`);
+                setCurrentValue(configuration.defaultValue);
             }
-            return defaultValue;
         }
         else
         {
-            const decoded = Buffer.from(value, "base64").toString("utf-8");
-            const parsed = Number(decoded);
-            return parsed;
+            if (configuration.valueMode === 'json')
+            {
+                setCurrentValue(JSON.parse(value));
+            }
+            else if (configuration.valueMode === 'base64')
+            {
+                const decoded = Buffer.from(value, "base64").toString("utf-8");
+                setCurrentValue(JSON.parse(decoded));
+            }
+            else if (configuration.valueMode === 'string')
+            {
+                setCurrentValue(value as T);
+            }
+            else if (configuration.valueMode === 'number')
+            {
+                setCurrentValue(Number(value) as T);
+            }
+            else if (configuration.valueMode === 'boolean')
+            {
+                setCurrentValue((value === 'true') as T);
+            }
         }
-    });
-}
+        // Need to disable ESLINT because otherwise it complains about not referencing disciminated fields
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ location.search ]);
 
-export function useURLMappedBase64Boolean(key: string, defaultValue?: boolean)
-{
-    key = Buffer.from(key).toString("base64");
-    return useURLMappedStateValue<boolean>(key, (value) =>
+    React.useEffect(() =>
     {
-        const stringRepresentation = value ? "true" : "false";
-        const encoded = Buffer.from(stringRepresentation).toString("base64");
-        return encoded;
-    }, (value) =>
-    {
-        if (value === undefined || value === null)
-            return defaultValue ?? false;
-        else
+        if (liveState.current.syncToURLDisabled)
         {
-            const decoded = Buffer.from(value, "base64").toString("utf-8");
-            const parsed = decoded === "true";
-            return parsed;
+            liveState.current.syncToURLDisabled = false;
+            return;
         }
-    });
+
+        liveState.current.syncFromURLDisabled = true;
+
+        if (configuration.valueMode === 'json')
+        {
+            const encoded = JSON.stringify(currentValue);
+            urlParams.set(configuration.key, encoded);
+        }
+        else if (configuration.valueMode === 'base64')
+        {
+            const encoded = Buffer.from(JSON.stringify(currentValue)).toString("base64");
+            urlParams.set(configuration.key, encoded);
+        }
+        else if (configuration.valueMode === 'string')
+        {
+            urlParams.set(configuration.key, currentValue as unknown as string);
+        }
+        else if (configuration.valueMode === 'number')
+        {
+            urlParams.set(configuration.key, (currentValue as number).toString());
+        }
+        else if (configuration.valueMode === 'boolean')
+        {
+            urlParams.set(configuration.key, (currentValue as unknown as boolean) ? 'true' : 'false');
+        }
+
+        const newUrl = `${location.pathname}?${urlParams.toString()}`;
+        navigate(newUrl, { replace: configuration.navigationBehaviour === 'replace' });
+
+    }, [ currentValue ]);
+
+    return [ currentValue, setCurrentValue ];
 }
 
 export class URLMappedValueIntentBuilder

@@ -108,7 +108,19 @@ export class ConfigurationManager
 
     public async setConfigurationValue<T>(key: string, value: T)
     {
+        const document = await this.getUnderlyingConfigurationValue(key);
 
+        await configurationCollection.updateOne({
+            _id: document._id
+        }, {
+            $set: {
+                value
+            }
+        });
+
+        document.value = value;
+
+        return value;
     }
 
     private async getUnderlyingConfigurationValue<T>(key: string)

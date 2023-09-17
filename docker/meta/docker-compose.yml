@@ -4,10 +4,10 @@ services:
     image: mongo
     restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
 
-  frontend: 
+  frontend:
     image: frontend:latest
     networks:
       default:
@@ -19,7 +19,7 @@ services:
     depends_on:
       - mongodb
     environment:
-      - MONGO_URL=mongodb://root:example@mongodb:27017
+      - MONGO_URL=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}
     hostname: dev
     networks:
       default:
