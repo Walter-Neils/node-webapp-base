@@ -1,7 +1,7 @@
-import { expressApp } from "../core/express.js";
-import { getMongoClient } from "../data/MongoConnectionManager.js";
+import { expressApp } from '../core/express.js';
+import timeMetrics from '../core/timeMetrics.js';
 
-expressApp.get('/test', async (req, res) =>
-{
-    throw new Error("Test error");
+expressApp.get('/test', async (req, res) => {
+	res.send(timeMetrics.currentLoopDuration.toString());
+	res.end();
 });

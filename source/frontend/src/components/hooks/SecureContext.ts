@@ -1,23 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
-export default function useIsSecureContext()
-{
-    const [ isSecureContext, setIsSecureContext ] = useState(true);
+export default function useIsSecureContext() {
+	const [isSecureContext, setIsSecureContext] = useState(true);
 
-    useEffect(() =>
-    {
-        const handleSecureContextChange = () =>
-        {
-            setIsSecureContext(window.isSecureContext);
-        };
+	useEffect(() => {
+		const handleSecureContextChange = () => {
+			setIsSecureContext(window.isSecureContext);
+		};
 
-        window.addEventListener('securecontextchange', handleSecureContextChange);
+		window.addEventListener(
+			'securecontextchange',
+			handleSecureContextChange,
+		);
 
-        return () =>
-        {
-            window.removeEventListener('securecontextchange', handleSecureContextChange);
-        };
-    }, []);
+		return () => {
+			window.removeEventListener(
+				'securecontextchange',
+				handleSecureContextChange,
+			);
+		};
+	}, []);
 
-    return isSecureContext;
+	return isSecureContext;
 }

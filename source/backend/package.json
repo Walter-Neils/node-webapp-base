@@ -9,7 +9,12 @@
         "dev:v8-opt": "tsc-watch --onSuccess \"node --inspect --prof --trace-deopt --trace-opt build/server/src/entryPoint.js\"",
         "depcruise": "npx depcruise src --no-config --include-only \"^src\" --output-type dot | dot -T svg > dependency-graph.svg",
         "depgraph": "npx ts_dependency_graph --start ./src/entryPoint.ts",
-        "sync-client-definitions": "cp -r ./src/clientShared ../frontend/src/clientShared/"
+        "sync-client-definitions": "cp -r ./src/clientShared ../frontend/src/clientShared/",
+        "fix": "eslint --fix --ext .ts,.tsx . --fix",
+        "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
+        "lint": "eslint . --ext .ts",
+        "precommit": "npm run prettier-format && npm run fix",
+        "watch": "watch 'clear;npm run precommit;echo \"Done\"' src"
     },
     "dependencies": {
         "@types/sharp": "^0.32.0",
@@ -27,12 +32,14 @@
         "join-images": "^1.1.5",
         "mongodb": "^5.5.0",
         "node-fetch": "^3.3.1",
+        "node-youtube-music": "^0.10.3",
         "nodemon": "^2.0.22",
         "pino": "^8.15.0",
         "sharp": "^0.32.5",
         "stable-diffusion-api": "^0.0.7",
         "uuid": "^9.0.0",
         "v8-profiler-next": "^1.9.0",
+        "watch": "^1.0.2",
         "web-push": "^3.6.1"
     },
     "devDependencies": {
@@ -46,8 +53,11 @@
         "@types/react-dom": "^18.2.7",
         "@types/uuid": "^9.0.2",
         "@types/web-push": "^3.3.2",
+        "@typescript-eslint/eslint-plugin": "^6.7.2",
         "dependency-cruiser": "^13.1.1",
+        "eslint": "^8.49.0",
         "javascript-obfuscator": "^4.0.2",
+        "prettier": "^3.0.3",
         "ts_dependency_graph": "^2.0.0",
         "ts-node": "^10.9.1",
         "tsc-watch": "^6.0.4",

@@ -29,52 +29,100 @@ precacheAndRoute(self.__WB_MANIFEST);
 // https://developers.google.com/web/fundamentals/architecture/app-shell
 const fileExtensionRegexp = new RegExp('/[^/?]+\\.[^/]+$');
 registerRoute(
-  // Return false to exempt requests from being fulfilled by index.html.
-  ({ request, url }: { request: Request; url: URL }) => {
-    // If this isn't a navigation, skip.
-    if (request.mode !== 'navigate') {
-      return false;
-    }
+	// Return false to exempt requests from being fulfilled by index.html.
+	({ request, url }: { request: Request; url: URL }) => {
+		// If this isn't a navigation, skip.
+		if (request.mode !== 'navigate') {
+			return false;
+		}
 
-    // If this is a URL that starts with /_, skip.
-    if (url.pathname.startsWith('/_')) {
-      return false;
-    }
+		// If this is a URL that starts with /_, skip.
+		if (url.pathname.startsWith('/_')) {
+			return false;
+		}
 
-    // If this looks like a URL for a resource, because it contains
-    // a file extension, skip.
-    if (url.pathname.match(fileExtensionRegexp)) {
-      return false;
-    }
+		// If this looks like a URL for a resource, because it contains
+		// a file extension, skip.
+		if (url.pathname.match(fileExtensionRegexp)) {
+			return false;
+		}
 
-    // Return true to signal that we want to use the handler.
-    return true;
-  },
-  createHandlerBoundToURL(process.env.PUBLIC_URL + '/index.html')
+		// Return true to signal that we want to use the handler.
+		return true;
+	},
+	createHandlerBoundToURL(process.env.PUBLIC_URL + '/index.html'),
 );
 
 // An example runtime caching route for requests that aren't handled by the
 // precache, in this case same-origin .png requests like those from in public/
 registerRoute(
-  // Add in any other file extensions or routing criteria as needed.
-  ({ url }) => url.origin === self.location.origin && url.pathname.endsWith('.png'),
-  // Customize this strategy as needed, e.g., by changing to CacheFirst.
-  new StaleWhileRevalidate({
-    cacheName: 'images',
-    plugins: [
-      // Ensure that once this runtime cache reaches a maximum size the
-      // least-recently used images are removed.
-      new ExpirationPlugin({ maxEntries: 50 }),
-    ],
-  })
+	// Add in any other file extensions or routing criteria as needed.
+	({ url }) =>
+		url.origin === self.location.origin && url.pathname.endsWith('.png'),
+	// Customize this strategy as needed, e.g., by changing to CacheFirst.
+	new StaleWhileRevalidate({
+		cacheName: 'images',
+		plugins: [
+			// Ensure that once this runtime cache reaches a maximum size the
+			// least-recently used images are removed.
+			new ExpirationPlugin({ maxEntries: 50 }),
+		],
+	}),
 );
 
 // This allows the web app to trigger skipWaiting via
 // registration.waiting.postMessage({type: 'SKIP_WAITING'})
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+self.addEventListener('message', event => {
+	if (event.data && event.data.type === 'SKIP_WAITING') {
+		self.skipWaiting();
+	}
 });
+
+type ClientMessage<T> = {
+	messageID: string;
+	type: string;
+	event: string;
+	payload: T;
+};
+
+// type ClientResponse = {
+// 	messageID: string;
+// 	type: 'service-worker-communication-response';
+// 	payload: unknown;
+// };
+
+/**const response = {
+					messageID: knownMessage.messageID,
+					type: 'service-worker-communication-response',
+					payload: result,
+				}; */
+
+async function sendMessageToClient(
+	message: ClientMessage<unknown>,
+	client: Client,
+) {
+	const clients = await self.clients.matchAll();
+
+	const messagePromise = new Promise<unknown>((resolve, reject) => {
+		let listener: ((event: ExtendableMessageEvent) => void) | undefined =
+			undefined;
+		listener = (event: ExtendableMessageEvent): void => {
+			if (
+				event.data &&
+				event.data.type === 'service-worker-communication-response' &&
+				event.data.messageID === message.messageID
+			) {
+				self.removeEventListener('message', listener!);
+				resolve(event.data.payload);
+			}
+		};
+
+		self.addEventListener('message', listener);
+	});
+
+	client.postMessage(message);
+
+	return messagePromise;
+}
 
 // Any other custom service worker logic can go here.
