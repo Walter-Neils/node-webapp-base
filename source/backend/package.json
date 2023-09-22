@@ -10,6 +10,7 @@
         "depcruise": "npx depcruise src --no-config --include-only \"^src\" --output-type dot | dot -T svg > dependency-graph.svg",
         "depgraph": "npx ts_dependency_graph --start ./src/entryPoint.ts",
         "sync-client-definitions": "cp -r ./src/clientShared ../frontend/src/clientShared/",
+        "live-sync-client-definitions": "watch 'npm run sync-client-definitions' ./src/clientShared",
         "fix": "eslint --fix --ext .ts,.tsx . --fix",
         "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
         "lint": "eslint . --ext .ts",

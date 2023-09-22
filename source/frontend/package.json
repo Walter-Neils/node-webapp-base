@@ -16,6 +16,7 @@
     "react-router-dom": "^6.15.0",
     "react-scripts": "5.0.1",
     "typescript": "^4.9.5",
+    "watch": "^1.0.2",
     "web-vitals": "^2.1.4",
     "workbox-background-sync": "^6.6.0",
     "workbox-broadcast-update": "^6.6.0",
@@ -48,7 +49,8 @@
     "fix": "eslint --fix --ext .ts,.tsx . --fix",
     "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
     "lint": "eslint . --ext .ts",
-    "precommit": "npm run prettier-format && npm run fix"
+    "precommit": "npm run prettier-format && npm run fix",
+    "watch": "watch 'clear;npm run precommit;echo \"Done\"' src"
   },
   "eslintConfig": {
     "extends": [

@@ -97,13 +97,19 @@ type ClientMessage<T> = {
 					payload: result,
 				}; */
 
+async function broadcastMessageToClients(message: ClientMessage<unknown>) {
+	const clients = await self.clients.matchAll();
+	const clientPromises = clients.map(client =>
+		sendMessageToClient(message, client),
+	);
+	return Promise.all(clientPromises);
+}
+
 async function sendMessageToClient(
 	message: ClientMessage<unknown>,
 	client: Client,
 ) {
-	const clients = await self.clients.matchAll();
-
-	const messagePromise = new Promise<unknown>((resolve, reject) => {
+	const messagePromise = new Promise<unknown>(resolve => {
 		let listener: ((event: ExtendableMessageEvent) => void) | undefined =
 			undefined;
 		listener = (event: ExtendableMessageEvent): void => {
@@ -112,6 +118,7 @@ async function sendMessageToClient(
 				event.data.type === 'service-worker-communication-response' &&
 				event.data.messageID === message.messageID
 			) {
+				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- we know it's defined, and we need to remove it when we're done
 				self.removeEventListener('message', listener!);
 				resolve(event.data.payload);
 			}
@@ -121,7 +128,6 @@ async function sendMessageToClient(
 	});
 
 	client.postMessage(message);
-
 	return messagePromise;
 }
 
