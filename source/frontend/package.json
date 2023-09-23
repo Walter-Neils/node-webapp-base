@@ -11,6 +11,7 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "buffer": "^6.0.3",
+    "dependency-cruiser": "^13.1.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.15.0",
@@ -50,7 +51,8 @@
     "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
     "lint": "eslint . --ext .ts",
     "precommit": "npm run prettier-format && npm run fix",
-    "watch": "watch 'clear;npm run precommit;echo \"Done\"' src"
+    "watch": "watch 'clear;npm run precommit;echo \"Done\"' src",
+    "depcruise": "npx depcruise src --output-type dot"
   },
   "eslintConfig": {
     "extends": [
