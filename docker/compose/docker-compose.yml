@@ -6,9 +6,12 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    ports:
+      - "27017:27017"
 
   frontend:
     image: frontend:latest
+    restart: always
     networks:
       default:
         aliases:
@@ -16,6 +19,7 @@ services:
 
   backend:
     image: backend:latest
+    restart: always
     depends_on:
       - mongodb
     environment:
@@ -28,6 +32,7 @@ services:
 
   router:
     image: router:latest
+    restart: always
     ports:
       - "80:80"
     depends_on:

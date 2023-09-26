@@ -18,6 +18,10 @@ class TimeMetrics {
 	public get currentLoopDuration(): number {
 		return Date.now() - previousEventLoopEnd;
 	}
+
+	public get applicationUptime(): number {
+		return Date.now() - applicationStartTimestamp;
+	}
 }
 
 export default new TimeMetrics();
