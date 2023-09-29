@@ -11,6 +11,13 @@ expressApp.use((_req, res, next) => {
 				});
 				res.end();
 			},
+			text: data => {
+				res.statusCode = 200;
+				// Set MIME type to text/plain
+				res.setHeader('Content-Type', 'text/plain');
+				res.send(data);
+				res.end();
+			},
 		},
 		error: {
 			json: (error, extraData, statusCode) => {
@@ -54,6 +61,7 @@ declare global {
 				 */
 				success: {
 					json: (data: unknown) => void;
+					text: (data: string) => void;
 				};
 
 				error: {
