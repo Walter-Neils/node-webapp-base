@@ -3,7 +3,7 @@
         "build": "rm -rf ./build; mkdir build;tsc -p .",
         "obfuscate:standard": "javascript-obfuscator --string-array true --simplify true --self-defending true --compact false --control-flow-flattening true --identifier-names-generator 'mangled-shuffled' ./build/ --output ./build/obfuscated/",
         "obfuscate:high": "javascript-obfuscator --string-array true --simplify true --self-defending true --compact false --control-flow-flattening true --identifier-names-generator 'hexadecimal' --transform-object-keys true ./build/ --output ./build/obfuscated/",
-        "start": "tsc-watch --onSuccess \"node build/entryPoint.js\" | pino-pretty",
+        "start": "NODE_ENV=development tsc-watch --onSuccess \"node build/entryPoint.js\" | pino-pretty",
         "production": "node build/server/src/entryPoint.js",
         "dev": "tsc-watch --onSuccess \"node --loader ts-loader build/server/src/entryPoint.ts\"",
         "dev:v8-opt": "tsc-watch --onSuccess \"node --inspect --prof --trace-deopt --trace-opt build/server/src/entryPoint.js\"",

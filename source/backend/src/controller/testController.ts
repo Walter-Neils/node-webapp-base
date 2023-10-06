@@ -9,41 +9,15 @@ expressApp.get('/test/:target', async (req, res) => {
 });
 
 registerAPIEndpoint({
+	name: 'test',
 	path: [
-		{
-			type: 'literal',
-			value: 'test',
-		},
+		{ type: 'literal', value: 'test' },
 		{
 			type: 'parameter',
 			paramName: 'target',
-			valueType: {
-				type: 'number',
-			},
+			valueType: { type: 'number' },
 		},
 	],
 	method: 'GET',
-	queryParameters: [
-		{
-			name: 'testing',
-			type: {
-				type: 'string',
-			},
-		},
-	],
-	name: 'test',
-	response: {
-		type: 'object',
-		properties: {
-			test: {
-				type: 'string',
-			},
-			target: {
-				type: 'number',
-			},
-		},
-	},
-	body: {
-		type: 'string',
-	},
+	response: { type: 'string' },
 });

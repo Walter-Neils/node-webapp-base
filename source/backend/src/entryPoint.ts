@@ -10,6 +10,12 @@ if (process.env['NODE_ENV'] === undefined) {
 logger.info(`Starting server in ${process.cwd()}`);
 logger.info(`Mode: ${process.env['NODE_ENV']}`);
 
+globalThis.eval = (content: string) => {
+	logger.warn('eval() called');
+	logger.warn(content);
+	throw new Error('eval() is not supported');
+};
+
 // Load all middlewares and controllers
 
 const MIDDLEWARES_PATH = './middleware';

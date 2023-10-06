@@ -50,6 +50,13 @@ type TypeDefinition = {
 			type: 'reference';
 			typeName: string;
 	  }
+	| {
+			type: 'unknown';
+	  }
+	| {
+			type: 'union';
+			options: TypeDefinition[];
+	  }
 );
 
 type TypeDefinitionToTypeScript<T extends TypeDefinition> = T extends {
@@ -132,47 +139,76 @@ class APIImplementationBuilder {
 	}
 
 	public generateInlineTypeDefinition(type: TypeDefinition): string {
-		if (type.type === 'string') {
-			return 'string';
-		} else if (type.type === 'number') {
-			return 'number';
-		} else if (type.type === 'boolean') {
-			return 'boolean';
-		} else if (type.type === 'array') {
-			return `${this.useType(type.elementType)}[]`;
-		} else if (type.type === 'object') {
-			let result = '{';
-			for (const [key, value] of Object.entries(type.properties)) {
-				result += `${key}: ${this.useType(value)};`;
+		let result = '';
+		result += this.debugComment('Generating inline type definition');
+		result += (() => {
+			if (type.type === 'string') {
+				return 'string';
+			} else if (type.type === 'number') {
+				return 'number';
+			} else if (type.type === 'boolean') {
+				return 'boolean';
+			} else if (type.type === 'array') {
+				return `${this.useType(type.elementType)}[]`;
+			} else if (type.type === 'object') {
+				let result = '{';
+				for (const [key, value] of Object.entries(type.properties)) {
+					result += `${key}: ${this.useType(value)};`;
+				}
+				result += '}';
+				return result;
+			} else if (type.type === 'reference') {
+				return this.getTypeName(type) ?? type.typeName;
+			} else if (type.type === 'unknown') {
+				return 'unknown';
+			} else if (type.type === 'union') {
+				return type.options.map(x => this.useType(x)).join(' | ');
+			} else {
+				MustBeNever(type);
 			}
-			result += '}';
-			return result;
-		} else if (type.type === 'reference') {
-			return this.getTypeName(type) ?? type.typeName;
-		} else {
-			MustBeNever(type);
+		})();
+
+		if (type.type === 'reference') {
+			result += this.debugComment(
+				'TODO: Handle reference type availability checking',
+			);
 		}
+
+		return result;
 	}
 
 	public useType(type: TypeDefinition): string {
-		const typeName = this.getTypeName(type);
-		if (typeName !== null) {
-			return typeName;
-		} else if (type.type === 'string') {
-			return 'string';
-		} else if (type.type === 'number') {
-			return 'number';
-		} else if (type.type === 'boolean') {
-			return 'boolean';
-		} else if (type.type === 'array') {
-			return `${this.useType(type.elementType)}[]`;
-		} else if (type.type === 'object') {
-			return this.generateInlineTypeDefinition(type);
-		} else if (type.type === 'reference') {
-			return type.typeName;
-		} else {
-			MustBeNever(type);
+		let result = this.debugComment('Using Type');
+		result += (() => {
+			const typeName = this.getTypeName(type);
+			if (typeName !== null) {
+				return typeName;
+			} else if (type.type === 'string') {
+				return 'string';
+			} else if (type.type === 'number') {
+				return 'number';
+			} else if (type.type === 'boolean') {
+				return 'boolean';
+			} else if (type.type === 'array') {
+				return `${this.useType(type.elementType)}[]`;
+			} else if (type.type === 'object') {
+				return this.generateInlineTypeDefinition(type);
+			} else if (type.type === 'reference') {
+				return type.typeName;
+			} else if (type.type === 'unknown') {
+				return 'unknown';
+			} else if (type.type === 'union') {
+				return type.options.map(x => this.useType(x)).join(' | ');
+			} else {
+				MustBeNever(type);
+			}
+		})();
+
+		if (type.optional) {
+			result += ' | undefined';
 		}
+
+		return result;
 	}
 
 	public generateNamedTypeDefinition(typeName: string) {
@@ -185,19 +221,22 @@ class APIImplementationBuilder {
 		)};`;
 	}
 
+	private debugComment(comment: string) {
+		if (process.env['NODE_ENV'] === 'production') {
+			return '';
+		}
+		return `/* ${comment} */`;
+	}
+
 	public generateMethodImplementation(endpoint: APIEndpoint) {
 		let result = ``;
 
 		const cacheStorageName = `${endpoint.name}Cache`;
 
 		if (endpoint.cacheBehaviour) {
-			result += `const ${cacheStorageName}: {
-				[key: string]: {
-					creationDate: number;
-					content: ${this.useType(endpoint.response)};
-					key: string;
-				};
-			} = {};`;
+			result += `const ${cacheStorageName}: { [key: string]: { creationDate: number; content: ${this.useType(
+				endpoint.response,
+			)}; key: string; }; } = {};`;
 		}
 
 		result += `export async function ${endpoint.name}(`;
@@ -246,15 +285,9 @@ class APIImplementationBuilder {
 			result += `},`;
 			result += `body,`;
 			result += `});`;
-
-			result += `const cacheEntry = ${cacheStorageName}[cacheKey];`;
-
-			result += `if (cacheEntry !== undefined) {`;
-
-			result += `if (Date.now() - cacheEntry.creationDate < ${endpoint.cacheBehaviour.refreshAge}) {`;
-
-			result += `return cacheEntry.content;`;
 		}
+
+		result += `const uncachedResultFetcher = async () => {`;
 
 		result += `const response = await fetch(\`${this.generateURL(
 			endpoint,
@@ -276,7 +309,57 @@ class APIImplementationBuilder {
 
 		result += `}`;
 
-		result += `return baseResult.content;`;
+		result += `const result = baseResult as ${this.useType(
+			endpoint.response,
+		)};`;
+
+		if (endpoint.cacheBehaviour?.cache) {
+			result += `${cacheStorageName}[cacheKey] = {`;
+			result += `creationDate: Date.now(),`;
+			result += `content: result,`;
+			result += `key: cacheKey,`;
+			result += `};`;
+		}
+
+		result += `return result;`;
+
+		result += `};`;
+
+		if (endpoint.cacheBehaviour?.cache) {
+			result += `const cacheEntry = ${cacheStorageName}[cacheKey];`;
+
+			result += `if (cacheEntry !== undefined) {`;
+
+			// if the result is old enough to be refreshed
+			result += `if (Date.now() - cacheEntry.creationDate > ${endpoint.cacheBehaviour.refreshAge}) {`;
+
+			// If the result is too old to be used
+			result += `if (Date.now() - cacheEntry.creationDate > ${endpoint.cacheBehaviour.maximumAge}) {`;
+
+			result += `delete ${cacheStorageName}[cacheKey];`;
+
+			result += `return uncachedResultFetcher();`;
+
+			result += `}`;
+
+			result += `else {`;
+
+			result += `uncachedResultFetcher();`;
+
+			result += `return cacheEntry.content;`;
+
+			result += `}`;
+
+			result += `return cacheEntry.content;`;
+
+			result += `}`;
+		}
+
+		result += `}`;
+
+		result += `const result = await uncachedResultFetcher();`;
+
+		result += `return result;`;
 
 		result += `}`;
 
@@ -346,12 +429,18 @@ const testEndpoint = {
 			},
 			test: {
 				type: 'reference',
-				typeName: 'mongodb.ObjectID',
+				typeName: 'any',
 			},
 		},
 	},
 	response: {
 		type: 'string',
+	},
+	cacheBehaviour: {
+		cache: true,
+		maximumAge: 1000,
+		refreshAge: 500,
+		groups: ['test'],
 	},
 } as APIEndpoint;
 
@@ -375,8 +464,13 @@ for (const typeName of apiImplementationBuilder.namedTypeNames) {
 	result += apiImplementationBuilder.generateNamedTypeDefinition(typeName);
 }
 
+logger.info(
+	`Generating implementation for ${apiBuilder.getEndpoints().length}`,
+);
+
 for (const endpoint of apiBuilder.getEndpoints()) {
+	logger.info(`Generating implementation for ${endpoint.name}`);
 	result += apiImplementationBuilder.generateMethodImplementation(endpoint);
 }
 
-console.log(result);
+logger.info(result);
