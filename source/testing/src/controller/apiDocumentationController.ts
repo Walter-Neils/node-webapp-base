@@ -1,17 +1,13 @@
 import { expressApp } from '../core/express.js';
+import delay from '../misc/delay.js';
 
-export type PathComponent =
+type PathComponent =
 	| {
 			type: 'literal';
-			value: string;
 	  }
 	| {
 			type: 'parameter';
-			paramName: string;
-			valueType: TypeDefinition & {
-				type: 'string' | 'number' | 'boolean';
-			};
-			documentation?: Documentation & { type: 'descriptiononly' };
+			valueType: TypeDefinition;
 	  };
 
 export type TypeDefinition = {
@@ -82,34 +78,33 @@ function normalizeTypeDefinition(
 	return type;
 }
 
-export type TypeDefinitionToTypeScript<T extends TypeDefinition> = T extends {
-	type: 'string';
-}
-	? string
-	: T extends { type: 'number' }
-	? number
-	: T extends { type: 'boolean' }
-	? boolean
-	: T extends { type: 'array'; elementType: infer U extends TypeDefinition }
-	? TypeDefinitionToTypeScript<U>[]
-	: T extends {
-			type: 'object';
-			properties: infer U extends { [key: string]: TypeDefinition };
-	  }
-	? { [K in keyof U]: TypeDefinitionToTypeScript<U[K]> }
-	: never;
+export type TypeDefinitionToTypeScript<T extends TypeDefinition | undefined> =
+	T extends {
+		type: 'string';
+	}
+		? string
+		: T extends { type: 'number' }
+		? number
+		: T extends { type: 'boolean' }
+		? boolean
+		: T extends {
+				type: 'array';
+				elementType: infer U extends TypeDefinition;
+		  }
+		? TypeDefinitionToTypeScript<U>[]
+		: T extends {
+				type: 'object';
+				properties: infer U extends { [key: string]: TypeDefinition };
+		  }
+		? { [K in keyof U]: TypeDefinitionToTypeScript<U[K]> }
+		: never;
 
 function compareTypeDefinitions(t1: TypeDefinition, t2: TypeDefinition) {
 	return JSON.stringify(t1) === JSON.stringify(t2);
 }
 
 export type QueryParameter = {
-	name: string;
-	type: TypeDefinition & {
-		optional: false;
-	} & {
-		type: 'string' | 'number' | 'boolean';
-	};
+	type: TypeDefinition;
 	documentation?: Documentation & { type: 'descriptiononly' };
 };
 
@@ -142,12 +137,51 @@ export type APIEndpoint = {
 	name: string;
 	method: string;
 	documentation?: Documentation & { type: 'method' };
-	path: PathComponent[];
-	queryParameters?: QueryParameter[];
+	path: {
+		[key: string]: PathComponent;
+	};
+	queryParameters?: {
+		[key: string]: QueryParameter;
+	};
 	body?: TypeDefinition;
 	response: TypeDefinition;
 	cacheBehaviour?: CacheBehaviour;
 };
+
+type GetSubType<T, K extends keyof T> = T[K];
+type NotUndefined<T> = T extends undefined ? never : T;
+type APIEndpointInvokeObject<T extends APIEndpoint> = T extends NotUndefined<
+	GetSubType<T, 'body'>
+> & { body: TypeDefinition }
+	? {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			body: TypeDefinitionToTypeScript<T['body']>;
+	  }
+	: {};
+
+const apiTest = {
+	name: 'test',
+	path: {
+		test: {
+			type: 'literal',
+		},
+		test2: {
+			type: 'parameter',
+			valueType: {
+				type: 'string',
+			},
+		},
+	},
+	body: {
+		type: 'string',
+	},
+	method: 'GET',
+	response: {
+		type: 'string',
+	},
+};
+
+type TestType = APIEndpointInvokeObject<typeof apiTest>;
 
 export class APIImplementationBuilder {
 	private apiEndpoints: APIEndpoint[];
@@ -589,4 +623,103 @@ expressApp.get('/api/implementation/typescript', async (req, res) => {
 		result += builder.generateMethodImplementation(endpoint);
 	}
 	res.standardFormat.success.text(result);
+});
+
+expressApp.get('/api/microservice/:serviceName', async (req, res) => {
+	const serviceName = req.params.serviceName;
+	const microserviceInitializationResponse = {
+		targetURI: `http://localhost:5000`,
+		endpoints: apiBuilder.getEndpoints(),
+	};
+	res.standardFormat.success.json(microserviceInitializationResponse);
+});
+
+async function connectToMicroservice<T>(serviceName: string) {
+	const microserviceInitializationResponse: {
+		targetURI: string;
+		endpoints: APIEndpoint[];
+	} = (
+		await (
+			await fetch(`http://localhost:5000/api/microservice/${serviceName}`)
+		).json()
+	).content;
+
+	const buildRequestMethod = (name: string) => {
+		if (
+			!microserviceInitializationResponse.endpoints.some(
+				x => x.name === name,
+			)
+		) {
+			throw new Error(`Endpoint ${name} not found`);
+		}
+
+		const endpoint = microserviceInitializationResponse.endpoints.find(
+			x => x.name === name,
+		)!;
+
+		// in the form of (args: {...}) => Promise<...>
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		return async (args: any) => {
+			let url = `${microserviceInitializationResponse.targetURI}`;
+			for (const pathComponent of endpoint.path) {
+				if (pathComponent.type === 'literal') {
+					url += '/' + pathComponent.value;
+				}
+				if (pathComponent.type === 'parameter') {
+					url += `/${args[pathComponent.paramName]}`;
+				}
+			}
+			if (endpoint.queryParameters !== undefined) {
+				url += '?';
+				for (const queryParameter of endpoint.queryParameters) {
+					url += `${queryParameter.name}=${
+						args[queryParameter.name]
+					}&`;
+				}
+			}
+			const response = await (
+				await fetch(url, {
+					method: endpoint.method,
+					body: endpoint.body ? JSON.stringify(args.body) : undefined,
+				})
+			).json();
+
+			if (!response.success) {
+				throw new Error(response.message);
+			}
+
+			return response.content;
+		};
+	};
+
+	const proxy = new Proxy(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		{} as any,
+		{
+			get: (target, prop) => {
+				if (typeof prop === 'string') {
+					if (prop === 'then') {
+						return undefined;
+					}
+					if (target[prop] === undefined) {
+						target[prop] = buildRequestMethod(prop);
+					}
+					return target[prop];
+				}
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				return (target as any)[prop];
+			},
+			set: () => false,
+		},
+	);
+
+	return proxy as T;
+}
+
+delay(2500).then(async () => {
+	const authController = await connectToMicroservice<{
+		getAuthStatus: () => Promise<boolean>;
+	}>('test');
+
+	console.log(await authController.getAuthStatus());
 });
