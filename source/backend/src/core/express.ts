@@ -1,12 +1,34 @@
 import cookieParser from 'cookie-parser';
 import express from 'express';
+import expressWs from 'express-ws';
 
 export const expressApp = express();
 
+expressWs(expressApp);
+
+declare global {
+	// eslint-disable-next-line @typescript-eslint/no-namespace
+	namespace Express {
+		// Add the 'ws' property to the expressApp object
+		interface Application {
+			ws: (
+				path: string,
+				handler: (ws: WebSocket, req: express.Request) => void,
+			) => void;
+		}
+	}
+}
+
 expressApp.use(cookieParser());
 
-const errorRequestHandler: express.ErrorRequestHandler = (err, req, res, next) =>
-{
+expressApp.use(express.json());
+
+const errorRequestHandler: express.ErrorRequestHandler = (
+	err,
+	req,
+	res,
+	next,
+) => {
 	res.statusCode = 500;
 
 	res.standardFormat.error.json(err);
@@ -14,10 +36,7 @@ const errorRequestHandler: express.ErrorRequestHandler = (err, req, res, next) =
 	next(err);
 };
 
-setTimeout(() =>
-{
-	expressApp.use(errorRequestHandler);
-}, 2500);
+expressApp.use(errorRequestHandler);
 
 const overriddenExpressFunctions = {
 	get: expressApp.get,
@@ -29,16 +48,14 @@ const overriddenExpressFunctionsNames: (keyof typeof overriddenExpressFunctions)
 		overriddenExpressFunctions,
 	) as (keyof typeof overriddenExpressFunctions)[];
 
-for (const functionName of overriddenExpressFunctionsNames)
-{
+for (const functionName of overriddenExpressFunctionsNames) {
 	// Replace the handler with a wrapper that catches errors in the handler and passes them to next()
-	const originalHandler = overriddenExpressFunctions[ functionName ];
+	const originalHandler = overriddenExpressFunctions[functionName];
 	// @ts-ignore
-	overriddenExpressFunctions[ functionName ] = (
+	overriddenExpressFunctions[functionName] = (
 		path: string,
 		...handlers: express.RequestHandler[]
-	) =>
-	{
+	) => {
 		// @ts-ignore
 		originalHandler.call(
 			expressApp,
@@ -46,23 +63,17 @@ for (const functionName of overriddenExpressFunctionsNames)
 			// @ts-ignore: We're doing some really weird stuff here and it's not worth the effort to make TS happy
 			...handlers.map(
 				// @ts-ignore
-				handler => (req, res, next) =>
-				{
-					try
-					{
+				handler => (req, res, next) => {
+					try {
 						const handlerResult: unknown = handler(req, res, next);
-						if (handlerResult instanceof Promise)
-						{
+						if (handlerResult instanceof Promise) {
 							handlerResult.catch(next);
-						} else if (handlerResult instanceof Error)
-						{
+						} else if (handlerResult instanceof Error) {
 							next(handlerResult);
-						} else if (handlerResult === undefined)
-						{
+						} else if (handlerResult === undefined) {
 							next();
 						}
-					} catch (err)
-					{
+					} catch (err) {
 						next(err);
 					}
 				},
@@ -71,5 +82,5 @@ for (const functionName of overriddenExpressFunctionsNames)
 	};
 
 	// @ts-ignore
-	expressApp[ functionName ] = overriddenExpressFunctions[ functionName ];
+	expressApp[functionName] = overriddenExpressFunctions[functionName];
 }

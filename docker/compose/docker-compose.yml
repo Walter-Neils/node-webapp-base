@@ -1,5 +1,11 @@
-version: '2'
+version: "2"
 services:
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
   mongodb:
     image: mongo
     restart: always
@@ -24,6 +30,7 @@ services:
       - mongodb
     environment:
       - MONGO_URL=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}
+      - REDIS_URL=redis://${REDIS_HOST}
     hostname: dev
     networks:
       default:
