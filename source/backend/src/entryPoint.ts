@@ -20,7 +20,6 @@ await Promise.all(
 		.readdirSync(MIDDLEWARES_PATH)
 		.filter(file => file.endsWith('.js'))
 		.map(async file => {
-			logger.info(`Loading middleware: ${file}`);
 			await import(`${MIDDLEWARES_PATH}/${file}`);
 		}),
 );
@@ -30,7 +29,6 @@ await Promise.all(
 		.readdirSync(CONTROLLERS_PATH)
 		.filter(file => file.endsWith('.js'))
 		.map(async file => {
-			logger.info(`Loading controller: ${file}`);
 			await import(`${CONTROLLERS_PATH}/${file}`);
 		}),
 );

@@ -20,7 +20,6 @@ declare global {
 }
 
 expressApp.use(cookieParser());
-
 expressApp.use(express.json());
 
 const errorRequestHandler: express.ErrorRequestHandler = (

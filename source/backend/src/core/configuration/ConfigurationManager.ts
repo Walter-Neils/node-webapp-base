@@ -1,6 +1,8 @@
 import { WithId } from 'mongodb';
 import { getMongoClient } from '../../data/MongoConnectionManager.js';
-
+import os from 'os';
+import { logger } from '../logging.js';
+import { hash } from '../../misc/hash.js';
 const client = getMongoClient();
 
 const configurationDB = client.db('infrastructure');
@@ -30,8 +32,10 @@ type __RC_GEN<T> = {
 type ActualConfiguration = __RC_GEN<Configuration>;
 
 function getMachineIdentifier() {
-	return 'machineIdentifier';
+	return os.hostname();
 }
+
+logger.info(`Machine identifier: ${getMachineIdentifier()}`);
 
 async function getConfigurationValue<Key extends keyof ActualConfiguration>(
 	key: Key,

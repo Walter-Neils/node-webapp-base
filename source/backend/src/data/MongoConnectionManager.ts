@@ -3,7 +3,7 @@ import EventEmitter from 'node:events';
 import TypedEventEmitter from '../misc/TypedEventListener.js';
 
 const MONGO_URL =
-	process.env['MONGO_URL'] ?? 'mongodb://admin:password@172.21.0.2:27017';
+	process.env['MONGO_URL'] ?? 'mongodb://admin:password@127.0.0.1:27017';
 
 if (MONGO_URL === undefined) {
 	throw new Error('MONGO_URL environment variable not set');
@@ -106,7 +106,14 @@ const mongoConnectionEvents = new TypedEventEmitter<{
 	];
 }>(new EventEmitter());
 
-async function _watcher() {
+const watchers: {
+	[key: string]: {
+		isCancelled: boolean;
+		workerPromise: Promise<void>;
+	};
+} = {};
+
+async function watcher() {
 	for await (const change of client.watch(undefined, {
 		fullDocument: 'updateLookup',
 	})) {
@@ -118,7 +125,20 @@ async function _watcher() {
 	}
 }
 
-_watcher();
+export function attachMongoDatabaseWatcher(db: string) {
+	if (watchers[db] === undefined) {
+		watchers[db] = {
+			isCancelled: false,
+			workerPromise: watcher(),
+		};
+	}
+}
+
+export function cancelMongoDatabaseWatcher(db: string) {
+	if (watchers[db] !== undefined) {
+		watchers[db].isCancelled = true;
+	}
+}
 
 export function getMongoConnectionEventEmitter() {
 	return mongoConnectionEvents;
