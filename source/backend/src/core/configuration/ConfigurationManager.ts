@@ -1,154 +1,100 @@
 import { WithId } from 'mongodb';
 import { getMongoClient } from '../../data/MongoConnectionManager.js';
-import { ALL_POSSIBLE_PATHS_MUST_BE_EXHAUSTIVELY_CHECKED_ON } from '../../misc/ExhaustiveCodePathChecking.js';
 
 const client = getMongoClient();
 
 const configurationDB = client.db('infrastructure');
 
-const configurationCollection =
-	configurationDB.collection<ConfigurationDocument>('backend-configuration');
+const configurationCollection = configurationDB.collection<
+	WithId<{
+		key: string;
+		machineIdentifier: string;
+		value: unknown;
+	}>
+>('backend-configuration');
 
-type ApplicatorTags = 'production' | 'development' | 'test' | string;
+export interface Configuration {}
+// To extend the Configuration interface, create a file called Configuration.d.ts
+// and add the following:
+// declare module './ConfigurationManager.js' {
+// 	interface Configuration {
+// 		// Add your configuration here
+// 	}
+// }
 
-type ApplicationConfiguration = (
-	| {
-			applicatorType: 'tags';
-			tags: ApplicatorTags[];
-	  }
-	| {
-			applicatorType: 'all';
-	  }
-	| {
-			applicatorType: 'specificdevice';
-			hostname: string;
-	  }
-) & {
-	precedence: number;
+// Hack to allow other files to extend the Configuration interface
+type __RC_GEN<T> = {
+	[P in keyof T]: T[P] | undefined;
 };
 
-type ConfigurationDocument = {
-	applicator: ApplicationConfiguration;
-	key: string;
-	value: unknown;
-};
+type ActualConfiguration = __RC_GEN<Configuration>;
 
-export class ConfigurationManager {
-	private hostname: string;
-	private tags: ApplicatorTags[];
-
-	private configurationDocuments: Promise<WithId<ConfigurationDocument>[]>;
-
-	constructor(hostname: string, tags: ApplicatorTags[]) {
-		this.hostname = hostname;
-		this.tags = tags;
-		this.configurationDocuments = this.getConfigurationDocuments();
-	}
-
-	private async getConfigurationDocuments() {
-		return await configurationCollection.find().toArray();
-	}
-
-	private isConfigurationDocumentRelevant(document: ConfigurationDocument) {
-		const applicator = document.applicator;
-
-		switch (applicator.applicatorType) {
-			case 'tags':
-				return applicator.tags.some(tag => this.tags.includes(tag));
-			case 'all':
-				return true;
-			case 'specificdevice':
-				return applicator.hostname === this.hostname;
-		}
-
-		ALL_POSSIBLE_PATHS_MUST_BE_EXHAUSTIVELY_CHECKED_ON(applicator);
-	}
-
-	private async getRelevantConfigurationDocuments() {
-		const documents = await this.configurationDocuments;
-		const filteredDocuments = documents.filter(document =>
-			this.isConfigurationDocumentRelevant(document),
-		);
-		return filteredDocuments;
-	}
-
-	public async getConfigurationValue<T>(key: string) {
-		const documents = await this.getRelevantConfigurationDocuments();
-		const document = documents.find(document => document.key === key);
-
-		if (document === undefined) {
-			throw new Error(`No configuration document with key ${key}`);
-		}
-
-		return document.value as T;
-	}
-
-	public async addConfigurationValue<T>(
-		key: string,
-		value: T,
-		configuration: ApplicationConfiguration,
-	) {
-		const insertResult = await configurationCollection.insertOne({
-			key,
-			value,
-			applicator: configuration,
-		});
-
-		const result = await configurationCollection.findOne({
-			_id: insertResult.insertedId,
-		});
-
-		if (result === null) {
-			throw new Error('Inserted document not found');
-		}
-
-		(await this.configurationDocuments).push(result);
-
-		return value;
-	}
-
-	public async setConfigurationValue<T>(key: string, value: T) {
-		const document = await this.getUnderlyingConfigurationValue(key);
-
-		await configurationCollection.updateOne(
-			{
-				_id: document._id,
-			},
-			{
-				$set: {
-					value,
-				},
-			},
-		);
-
-		document.value = value;
-
-		return value;
-	}
-
-	private async getUnderlyingConfigurationValue(key: string) {
-		const documents = await this.getRelevantConfigurationDocuments();
-		const document = documents
-			.filter(document => document.key === key)
-			.sort((a, b) => b.applicator.precedence - a.applicator.precedence)
-			.pop();
-
-		if (document === undefined) {
-			throw new Error(`No configuration document with key ${key}`);
-		}
-
-		return document;
-	}
-
-	public async getConfigurationValueOrDefault<T>(
-		key: string,
-		defaultValue: T,
-	) {
-		try {
-			const value = await this.getConfigurationValue<T>(key);
-			return value;
-		} catch (e) {
-			return defaultValue;
-		}
-	}
+function getMachineIdentifier() {
+	return 'machineIdentifier';
 }
+
+async function getConfigurationValue<Key extends keyof ActualConfiguration>(
+	key: Key,
+): Promise<ActualConfiguration[Key]> {
+	const result = await configurationCollection.findOne({
+		key,
+		machineIdentifier: getMachineIdentifier(),
+	});
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if (result === null) return undefined as any;
+	return result.value as ActualConfiguration[Key];
+}
+
+async function setConfigurationValue<Key extends keyof ActualConfiguration>(
+	key: Key,
+	value: ActualConfiguration[Key],
+) {
+	await configurationCollection.updateOne(
+		{
+			key,
+			machineIdentifier: getMachineIdentifier(),
+		},
+		{
+			$set: {
+				key,
+				machineIdentifier: getMachineIdentifier(),
+				value,
+			},
+		},
+		{
+			upsert: true,
+		},
+	);
+}
+type GetOrDefault<
+	Key extends keyof ActualConfiguration,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	DefaultGetter extends (...args: any) => any,
+> = ReturnType<DefaultGetter> extends undefined
+	? ActualConfiguration[Key]
+	: ReturnType<DefaultGetter>;
+
+type NotUndefined<T> = T extends undefined ? never : T;
+
+async function getConfigurationValueOrSetDefault<
+	Key extends keyof ActualConfiguration,
+	DefaultGetter extends () => ActualConfiguration[Key] | undefined,
+>(
+	key: Key,
+	getDefault: DefaultGetter,
+): Promise<GetOrDefault<Key, DefaultGetter>> {
+	const value = await getConfigurationValue(key);
+	if (value === undefined) {
+		const defaultValue = getDefault();
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		await setConfigurationValue(key, defaultValue as any);
+		return defaultValue as NotUndefined<GetOrDefault<Key, DefaultGetter>>;
+	}
+	return value as NotUndefined<GetOrDefault<Key, DefaultGetter>>;
+}
+
+export const configurationManager = {
+	getConfigurationValue,
+	setConfigurationValue,
+	getConfigurationValueOrSetDefault,
+};
