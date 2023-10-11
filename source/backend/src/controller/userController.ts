@@ -1,18 +1,8 @@
-import { configurationManager } from '../core/configuration/ConfigurationManager.js';
 import { expressApp } from '../core/express.js';
+// import { getTypedMongoCollection } from '../data/MongoConnectionManager.js';
 
-declare module '../core/configuration/ConfigurationManager.js' {
-	interface Configuration {
-		test: string;
-	}
-}
+// const userCollection = getTypedMongoCollection('auth', 'users');
 
 expressApp.get('/api/user', async (req, res) => {
-	res.write(
-		await configurationManager.getConfigurationValueOrSetDefault(
-			'test',
-			() => 'test',
-		),
-	);
-	res.end();
+	res.end(JSON.stringify(req.user));
 });

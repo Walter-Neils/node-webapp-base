@@ -16,6 +16,19 @@ export function getMongoClient() {
 	return client;
 }
 
+export interface MongoDatabaseSchema {}
+
+export function getTypedMongoCollection<
+	TDatabase extends keyof MongoDatabaseSchema,
+	TCollection extends keyof MongoDatabaseSchema[TDatabase],
+>(database: TDatabase, collection: TCollection) {
+	return client
+		.db(database)
+		.collection<
+			mongo.Document & MongoDatabaseSchema[TDatabase][TCollection]
+		>(collection as string);
+}
+
 export type ServerSideDBOBject<T> = T & {
 	_id: mongo.ObjectId;
 };
@@ -114,9 +127,15 @@ const watchers: {
 } = {};
 
 async function watcher() {
-	for await (const change of client.watch(undefined, {
+	for await (const _change of client.watch(undefined, {
 		fullDocument: 'updateLookup',
 	})) {
+		const change = _change as WithFullDocument<
+			mongo.ChangeStreamDocument<mongo.BSON.Document>
+		>;
+		if (watchers[change.ns.db]?.isCancelled) {
+			break;
+		}
 		mongoConnectionEvents.dispatchEvent(
 			change.operationType,
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,28 +1,25 @@
-import { WithId } from 'mongodb';
-import { getMongoClient } from '../../data/MongoConnectionManager.js';
+import { getTypedMongoCollection } from '../../data/MongoConnectionManager.js';
 import os from 'os';
 import { logger } from '../logging.js';
-import { hash } from '../../misc/hash.js';
-const client = getMongoClient();
 
-const configurationDB = client.db('infrastructure');
+declare module '../../data/MongoConnectionManager.js' {
+	interface MongoDatabaseSchema {
+		infastructure: {
+			'backend-configuration': {
+				key: string;
+				machineIdentifier: string;
+				value: unknown;
+			};
+		};
+	}
+}
 
-const configurationCollection = configurationDB.collection<
-	WithId<{
-		key: string;
-		machineIdentifier: string;
-		value: unknown;
-	}>
->('backend-configuration');
+const configurationCollection = getTypedMongoCollection(
+	'infastructure',
+	'backend-configuration',
+);
 
 export interface Configuration {}
-// To extend the Configuration interface, create a file called Configuration.d.ts
-// and add the following:
-// declare module './ConfigurationManager.js' {
-// 	interface Configuration {
-// 		// Add your configuration here
-// 	}
-// }
 
 // Hack to allow other files to extend the Configuration interface
 type __RC_GEN<T> = {
