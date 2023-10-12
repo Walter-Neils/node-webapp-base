@@ -1,4 +1,7 @@
-import { MongoDatabaseSchema } from '../data/MongoConnectionManager.js';
+import {
+	MongoDatabaseSchema,
+	getTypedMongoCollection,
+} from '../data/MongoConnectionManager.js';
 
 declare global {
 	// eslint-disable-next-line @typescript-eslint/no-namespace
@@ -14,7 +17,9 @@ declare module '../data/MongoConnectionManager.js' {
 		'users.auth': {
 			username: string;
 			password: string;
-			profilePictureURL?: string;
+			sessionToken: string;
 		};
 	}
 }
+
+getTypedMongoCollection('users', 'auth');
