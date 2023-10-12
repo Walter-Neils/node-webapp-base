@@ -4,12 +4,10 @@ import { logger } from '../logging.js';
 
 declare module '../../data/MongoConnectionManager.js' {
 	interface MongoDatabaseSchema {
-		infastructure: {
-			'backend-configuration': {
-				key: string;
-				machineIdentifier: string;
-				value: unknown;
-			};
+		'infastructure.backend-configuration': {
+			key: string;
+			machineIdentifier: string;
+			value: unknown;
 		};
 	}
 }

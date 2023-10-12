@@ -18,15 +18,42 @@ export function getMongoClient() {
 
 export interface MongoDatabaseSchema {}
 
+type KeyValuePath<T> = T extends `${infer Key}.${infer Rest}`
+	? {
+			key: Key;
+			value: Rest;
+	  }
+	: never;
+
+type MongoDatabaseKeys = keyof {
+	[key in keyof MongoDatabaseSchema as `${KeyValuePath<key>['key']}`]: KeyValuePath<key>['key'];
+};
+
+type MongoCollections<Database extends MongoDatabaseKeys> = {
+	[key in keyof MongoDatabaseSchema as `${KeyValuePath<key>['value']}`]: key extends `${Database}.`
+		? MongoDatabaseSchema[key]
+		: never;
+};
+
+type CollectionStructure<
+	Database extends MongoDatabaseKeys,
+	Collection extends keyof MongoCollections<Database>,
+> = MongoDatabaseSchema extends {
+	[Key in `${Database}.${Collection}`]: infer Value;
+}
+	? Value
+	: never;
+
 export function getTypedMongoCollection<
-	TDatabase extends keyof MongoDatabaseSchema,
-	TCollection extends keyof MongoDatabaseSchema[TDatabase],
+	TDatabase extends MongoDatabaseKeys,
+	TCollection extends keyof MongoCollections<TDatabase>,
 >(database: TDatabase, collection: TCollection) {
-	return client
-		.db(database)
-		.collection<
-			mongo.Document & MongoDatabaseSchema[TDatabase][TCollection]
-		>(collection as string);
+	return client.db(database).collection<
+		mongo.Document &
+			CollectionStructure<TDatabase, TCollection> & {
+				_id: mongo.ObjectId;
+			}
+	>(collection as string);
 }
 
 export type ServerSideDBOBject<T> = T & {
