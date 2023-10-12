@@ -99,3 +99,5 @@ await Promise.all(
 logger.info('Starting server...');
 
 expressApp.listen(5000);
+
+logger.info(`Server started on port 5000`);

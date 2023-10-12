@@ -1,5 +1,4 @@
 import { MongoDatabaseSchema } from '../data/MongoConnectionManager.js';
-import { ExpressSession, expressSessionEvents } from './sessionMiddleware.js';
 
 declare global {
 	// eslint-disable-next-line @typescript-eslint/no-namespace
@@ -19,18 +18,3 @@ declare module '../data/MongoConnectionManager.js' {
 		};
 	}
 }
-
-declare module './sessionMiddleware.js' {
-	interface ExpressSession {
-		count: number;
-	}
-}
-
-const handler: (session: ExpressSession) => void = session => {
-	if (session.count === undefined) {
-		session.count = 0;
-	}
-};
-
-expressSessionEvents.addEventListener('session-init', handler);
-expressSessionEvents.addEventListener('session-retrieve', handler);

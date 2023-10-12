@@ -18,19 +18,23 @@ export function getMongoClient() {
 
 export interface MongoDatabaseSchema {}
 
-type KeyValuePath<T> = T extends `${infer Key}.${infer Rest}`
+type DotPair<T extends string> = T extends `${infer Key}.${infer Rest}`
 	? {
-			key: Key;
-			value: Rest;
+			first: Key;
+			second: Rest;
 	  }
 	: never;
 
 type MongoDatabaseKeys = keyof {
-	[key in keyof MongoDatabaseSchema as `${KeyValuePath<key>['key']}`]: KeyValuePath<key>['key'];
+	[key in keyof MongoDatabaseSchema as `${DotPair<key>['first']}`]: DotPair<key>['first'];
 };
 
 type MongoCollections<Database extends MongoDatabaseKeys> = {
-	[key in keyof MongoDatabaseSchema as `${KeyValuePath<key>['value']}`]: key extends `${Database}.`
+	[key in keyof MongoDatabaseSchema as key extends `${Database}.${infer Rest}`
+		? `${Rest}`
+		: // Next line must infer Rest to in order to not return never. Not sure why.
+		  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+		  never]: key extends `${Database}.${infer Rest}`
 		? MongoDatabaseSchema[key]
 		: never;
 };
