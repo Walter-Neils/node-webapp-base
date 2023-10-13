@@ -1,3 +1,7 @@
+/**
+ * Generates a GUID
+ * @returns A GUID
+ */
 export default function generateGUID() {
 	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(
 		/[xy]/g,

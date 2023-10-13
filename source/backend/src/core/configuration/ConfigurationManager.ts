@@ -26,6 +26,10 @@ type __RC_GEN<T> = {
 
 type ActualConfiguration = __RC_GEN<Configuration>;
 
+/**
+ * Gets the machine identifier
+ * @returns The machine identifier
+ */
 function getMachineIdentifier() {
 	return os.hostname();
 }

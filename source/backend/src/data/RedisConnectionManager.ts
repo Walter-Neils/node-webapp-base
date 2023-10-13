@@ -6,6 +6,10 @@ const redisClients: {
 	[key: number]: ReturnType<typeof createClient>;
 } = {};
 
+/**
+ * Gets a redis client
+ * @param db The database to use
+ */
 export async function getRedisClient(db?: number) {
 	db = db || 0;
 	if (!redisClients[db]) {

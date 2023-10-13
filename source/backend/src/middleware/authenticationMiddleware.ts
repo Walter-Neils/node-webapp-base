@@ -1,3 +1,4 @@
+import { expressApp } from '../core/express.js';
 import {
 	MongoDatabaseSchema,
 	getTypedMongoCollection,
@@ -12,14 +13,22 @@ declare global {
 	}
 }
 
-declare module '../data/MongoConnectionManager.js' {
-	interface MongoDatabaseSchema {
-		'users.auth': {
-			username: string;
-			password: string;
-			sessionToken: string;
-		};
-	}
-}
+const userCollection = getTypedMongoCollection('users', 'auth');
 
-getTypedMongoCollection('users', 'auth');
+expressApp.use(async (req, res, next) => {
+	if (req.cookies.session) {
+		const user = (
+			await userCollection
+				.find({
+					sessionToken: req.cookies.session,
+				})
+				.toArray()
+		)[0];
+
+		if (user) {
+			req.user = user;
+		}
+	}
+
+	next();
+});

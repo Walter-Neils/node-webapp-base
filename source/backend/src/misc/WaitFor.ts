@@ -1,5 +1,11 @@
 import yieldExecution from './yieldExecution.js';
 
+/**
+ * Waits for a condition to be true
+ * @param condition The condition to wait for
+ * @param timeout The maximum amount of time to wait for the condition to be true
+ * @returns A promise that resolves when the condition is true
+ */
 export default async function waitFor(
 	condition: () => Promise<boolean> | boolean,
 	timeout?: number,

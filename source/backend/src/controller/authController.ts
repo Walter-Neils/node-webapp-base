@@ -1,8 +1,19 @@
+import { PrivateUserProfile } from '../clientShared/UserInterface.js';
 import { expressApp } from '../core/express.js';
 import { getTypedMongoCollection } from '../data/MongoConnectionManager.js';
 import generateGUID from '../misc/Guid.js';
 
+declare module '../data/MongoConnectionManager.js' {
+	interface MongoDatabaseSchema {
+		'users.auth': PrivateUserProfile & {
+			password: string;
+			sessionToken: string;
+		};
+	}
+}
+
 const userCollection = getTypedMongoCollection('users', 'auth');
+
 expressApp.get('/api/user/authenticate', async (req, res) => {
 	const user = (
 		await userCollection
@@ -33,5 +44,5 @@ expressApp.get('/api/user/authenticate', async (req, res) => {
 		maxAge: 1000 * 60 * 60 * 24, // 1 day
 	});
 
-	res.status(200).send('OK').end();
+	res.standardFormat.success.json(user);
 });

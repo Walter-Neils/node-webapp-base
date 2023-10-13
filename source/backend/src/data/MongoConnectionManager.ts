@@ -1,6 +1,6 @@
 import * as mongo from 'mongodb';
 import EventEmitter from 'node:events';
-import TypedEventEmitter from '../misc/TypedEventListener.js';
+import TypedEventEmitter from '../clientShared/TypedEventListener.js';
 
 const MONGO_URL =
 	process.env['MONGO_URL'] ?? 'mongodb://admin:password@127.0.0.1:27017';
@@ -48,6 +48,12 @@ type CollectionStructure<
 	? Value
 	: never;
 
+/**
+ * Gets a strongly typed collection from the database
+ * @param database The name of the database
+ * @param collection The name of the collection
+ * @returns A strongly typed collection
+ */
 export function getTypedMongoCollection<
 	TDatabase extends MongoDatabaseKeys,
 	TCollection extends keyof MongoCollections<TDatabase>,
@@ -175,6 +181,10 @@ async function watcher() {
 	}
 }
 
+/**
+ * Attaches a watcher to a database
+ * @param db The name of the database to watch
+ */
 export function attachMongoDatabaseWatcher(db: string) {
 	if (watchers[db] === undefined) {
 		watchers[db] = {
@@ -184,12 +194,20 @@ export function attachMongoDatabaseWatcher(db: string) {
 	}
 }
 
+/**
+ * Cancels a watcher on a database. This will not stop the watcher immediately, but will stop it from continuing to watch the database.
+ * @param db The name of the database to cancel the watcher on
+ */
 export function cancelMongoDatabaseWatcher(db: string) {
 	if (watchers[db] !== undefined) {
 		watchers[db].isCancelled = true;
 	}
 }
 
+/**
+ * Gets the event emitter for mongo connection events
+ * @returns The event emitter for mongo connection events
+ */
 export function getMongoConnectionEventEmitter() {
 	return mongoConnectionEvents;
 }

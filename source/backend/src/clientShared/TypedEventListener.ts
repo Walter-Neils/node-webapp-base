@@ -4,6 +4,9 @@ export type EventListenerEventMap<Keys extends string> = {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	[key in Keys]: any[];
 };
+/**
+ * A strongly typed wrapper around EventEmitter
+ */
 export default class TypedEventEmitter<
 	TypeMap extends EventListenerEventMap<string>,
 > {
@@ -32,14 +35,26 @@ export default class TypedEventEmitter<
 		...event: TypeMap[Key]
 	) {
 		if (typeof type !== 'string') throw new Error('Type must be a string');
-		this._eventEmitter.emit(type, event);
+		this._eventEmitter.emit(type, ...event);
 	}
 
 	once<Key extends keyof TypeMap>(
 		type: Key,
-		listener: (event: TypeMap[Key]) => void,
+		listener: (...event: TypeMap[Key]) => void,
 	) {
 		if (typeof type !== 'string') throw new Error('Type must be a string');
-		this._eventEmitter.once(type, listener);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		this._eventEmitter.once(type, listener as any);
+	}
+
+	getAwaiterAt<
+		Key extends keyof TypeMap,
+		TArgIndex extends keyof TypeMap[Key] = 0,
+	>(type: Key, index: TArgIndex): Promise<TypeMap[Key][TArgIndex]> {
+		return new Promise<TypeMap[Key][TArgIndex]>(resolve => {
+			this.once(type, (...event) => {
+				resolve(event[index]);
+			});
+		});
 	}
 }
