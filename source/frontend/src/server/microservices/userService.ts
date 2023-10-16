@@ -1,3 +1,4 @@
+import { enqueueSnackbar } from 'notistack';
 import { StandardResponse } from '../../clientShared/StandardResponse';
 import { TypedWebSocket } from '../../clientShared/TypedWebSocket';
 import { PublicUserProfile } from '../../clientShared/UserInterface';
@@ -6,6 +7,7 @@ import {
 	getMicroserviceEventEmitter,
 	registerMicroservice,
 } from './Microservice';
+import { GenericNotification } from '../../clientShared/Notification';
 
 declare module './Microservice' {
 	interface Microservices {
@@ -26,6 +28,7 @@ declare module './Microservice' {
 			'auth:loginfailed': [error: string];
 			'auth:logout': [];
 			'service:status': ['available' | 'unavailable'];
+			'service:notification': [notification: GenericNotification];
 		};
 	}
 }
@@ -52,15 +55,34 @@ function onlyOnce<T extends object>(fn: () => Promise<T>) {
 	};
 }
 
+function displayNotification(notification: GenericNotification) {
+	enqueueSnackbar(notification.body, {
+		variant: notification.severity,
+	});
+}
+
 setTimeout(() => {
 	const events = getMicroserviceEventEmitter('userService');
+
+	events.addEventListener('service:status', status => {
+		console.log(`UserService status change: ${status}`);
+	});
+
+	events.addEventListener('service:notification', notification => {
+		displayNotification(notification);
+	});
 
 	registerMicroservice(
 		'userService',
 		onlyOnce(async () => {
 			const userServiceSocket = TypedWebSocket<{
 				status: 'available' | 'unavailable';
-			}>(new WebSocket(`ws://${location.host}/api/userService`));
+				notification: GenericNotification;
+			}>(
+				new WebSocket(
+					`ws://${location.host}:${location.port}/api/core/user`,
+				),
+			);
 
 			await new Promise<void>((resolve, reject) => {
 				const state = {
@@ -99,6 +121,13 @@ setTimeout(() => {
 				'message:status',
 				status => {
 					events.dispatchEvent('service:status', status);
+				},
+			);
+
+			userServiceSocket.eventEmitter.addEventListener(
+				'message:notification',
+				notification => {
+					events.dispatchEvent('service:notification', notification);
 				},
 			);
 

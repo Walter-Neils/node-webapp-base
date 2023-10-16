@@ -1,7 +1,11 @@
+import { GenericNotification } from '../clientShared/Notification.js';
+import { TypedWebSocket } from '../clientShared/TypedWebSocket.js';
 import { PrivateUserProfile } from '../clientShared/UserInterface.js';
 import { expressApp } from '../core/express.js';
+import { logger } from '../core/logging.js';
 import { getTypedMongoCollection } from '../data/MongoConnectionManager.js';
 import generateGUID from '../misc/Guid.js';
+import delay from '../misc/delay.js';
 
 declare module '../data/MongoConnectionManager.js' {
 	interface MongoDatabaseSchema {
@@ -14,7 +18,17 @@ declare module '../data/MongoConnectionManager.js' {
 
 const userCollection = getTypedMongoCollection('users', 'auth');
 
-expressApp.get('/api/user/authenticate', async (req, res) => {
+expressApp.ws('/api/core/user', async (_ws, req) => {
+	logger.info('New websocket');
+	const ws = TypedWebSocket<{
+		status: 'available' | 'unavailable';
+		notification: GenericNotification;
+	}>(_ws);
+	await delay(500);
+	ws.sendMessage('status', 'available');
+});
+
+expressApp.get('/api/core/user/authenticate', async (req, res) => {
 	const user = (
 		await userCollection
 			.find({

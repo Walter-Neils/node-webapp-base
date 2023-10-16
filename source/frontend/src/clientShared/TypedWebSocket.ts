@@ -17,7 +17,8 @@ type WSEventsToTypedEvents<TEvents extends WSEvents> = PrefixKeys<
 		[TEventName in keyof TEvents]: WSEventToTypedEvent<TEvents, TEventName>;
 	},
 	'message:'
->;
+> &
+	WSImplicitEvents;
 
 type PrefixKeys<TObject, TPrefix extends string> = {
 	[Key in keyof TObject as `${TPrefix}${string & Key}`]: TObject[Key];
@@ -36,53 +37,55 @@ type WSImplicitEvents = PrefixKeys<
  * Creates a strongly typed wrapper around a WebSocket
  * @param ws The WebSocket to wrap
  */
-export function TypedWebSocket<TEvents extends WSEvents>(ws: WebSocket) {
+export function TypedWebSocket<TEvents extends WSEvents>(
+	ws: WebSocket | string,
+) {
+	if (typeof ws === 'string') {
+		ws = new WebSocket(ws);
+	}
+
 	const sendMessage: <TEventName extends keyof TEvents>(
 		eventName: TEventName,
 		data: TEvents[TEventName],
 	) => void = (eventName, data) => {
-		ws.send(
+		(ws as WebSocket).send(
 			JSON.stringify({
 				eventName,
 				data,
 			}),
 		);
 	};
-	const eventEmitter = new TypedEventEmitter<
-		WSEventsToTypedEvents<TEvents> & WSImplicitEvents
-	>(new EventEmitter());
+	const eventEmitter = new TypedEventEmitter<WSEventsToTypedEvents<TEvents>>(
+		new EventEmitter(),
+	);
 
 	ws.addEventListener('message', event => {
 		const message: {
 			eventName: keyof TEvents & string;
 			data: TEvents[keyof TEvents];
 		} = JSON.parse(event.data.toString());
-		eventEmitter.dispatchEvent(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(eventEmitter as any).dispatchEvent(
 			(`message:` + message.eventName) as `message:${string &
 				keyof TEvents}`,
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-			// @ts-ignore
 			message.data,
 			message.eventName,
 		);
 	});
 
 	ws.onclose = ev => {
-		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-ignore
-		eventEmitter.dispatchEvent('ws:close', ev, 'close');
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(eventEmitter as any).dispatchEvent('ws:close', ev);
 	};
 
 	ws.onerror = ev => {
-		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-ignore
-		eventEmitter.dispatchEvent('ws:error', ev, 'error');
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(eventEmitter as any).dispatchEvent('ws:error', ev);
 	};
 
 	ws.onopen = ev => {
-		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-ignore
-		eventEmitter.dispatchEvent('ws:open', ev, 'open');
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(eventEmitter as any).dispatchEvent('ws:open', ev);
 	};
 
 	return {
