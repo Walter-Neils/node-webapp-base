@@ -25,11 +25,11 @@ type DotPair<T extends string> = T extends `${infer Key}.${infer Rest}`
 	  }
 	: never;
 
-type MongoDatabaseKeys = keyof {
+export type MongoDatabaseKeys = keyof {
 	[key in keyof MongoDatabaseSchema as `${DotPair<key>['first']}`]: DotPair<key>['first'];
 };
 
-type MongoCollections<Database extends MongoDatabaseKeys> = {
+export type MongoCollections<Database extends MongoDatabaseKeys> = {
 	[key in keyof MongoDatabaseSchema as key extends `${Database}.${infer Rest}`
 		? `${Rest}`
 		: // Next line must infer Rest to in order to not return never. Not sure why.
