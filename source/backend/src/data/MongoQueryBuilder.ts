@@ -1,9 +1,6 @@
 import {
-	CollectionStructure,
 	MongoCollections,
 	MongoDatabaseKeys,
-	MongoDatabaseSchema,
-	getTypedMongoCollection,
 } from './MongoConnectionManager.js';
 
 type MongoComparisonOperator =
@@ -21,18 +18,6 @@ type FundamentalType = string | number | boolean | Date;
 type NonFundamentalFields<T> = {
 	[K in keyof T as T[K] extends FundamentalType ? never : K]: T[K];
 };
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type InvertObject<T extends Record<any, any>> = { [K in T[keyof T]]: keyof T };
-
-type StringFieldsOnly<T> = {
-	[K in keyof T as T[K] extends string ? K : never]: T[K];
-};
-
-type ValuesOf<T> = T[keyof T];
-
-type KeyOverlaps<T, U> = Extract<keyof T, keyof U>;
-type StringOrDie<T> = T extends string ? T : never;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 class MongoQueryBuilder<CollectionType> {
@@ -102,12 +87,14 @@ class MongoQueryBuilder<CollectionType> {
 					// So we extend the builder's collection type with the foreign lookup field type info
 					[K in keyof TLocalCaptures as TLocalCaptures[K] extends TLocalCaptureAlias
 						? TLocalCaptures[K]
-						: never]: CollectionType extends {
+						: 'x_key_fail']: CollectionType extends {
 						[X in K]: infer TCollectionStructure;
 					}
 						? TCollectionStructure
 						: unknown;
-				} & MongoCollection<TDatabase, TCollection>
+				} & (MongoCollection<TDatabase, TCollection> extends never
+					? 'collection_resolution_fail'
+					: MongoCollection<TDatabase, TCollection>)
 			>,
 		) => TPipeline,
 		resultField: TResultField,
@@ -151,7 +138,7 @@ class MongoQueryBuilder<CollectionType> {
 		});
 
 		return this as unknown as MongoQueryBuilder<
-			Exclude<CollectionType, TResultKey> & {
+			Omit<CollectionType, TResultKey> & {
 				[K in TResultKey]: CollectionType[TKey] extends unknown[]
 					? CollectionType[TKey][TIndex]
 					: never;
@@ -161,6 +148,10 @@ class MongoQueryBuilder<CollectionType> {
 
 	public test(): CollectionType[] {
 		return [];
+	}
+
+	public get _rawComponents() {
+		return this.components;
 	}
 }
 
@@ -178,19 +169,3 @@ export function getMongoQueryBuilder<
 >(database: TDatabase, collection: TCollection) {
 	return new MongoQueryBuilder<MongoCollections<TDatabase>[TCollection]>();
 }
-
-const result = getMongoQueryBuilder('users', 'auth')
-	.lookup(
-		'users',
-		'notifications',
-		{
-			username: 'userId',
-		},
-		pipeline => {
-			return pipeline
-				.where('userId', '$eq', '$$userId')
-				.where('severity', '$eq', 'error');
-		},
-		'notifications',
-	)
-	.test()[0].notifications[0].severity;

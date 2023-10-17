@@ -75,89 +75,27 @@ setTimeout(() => {
 	registerMicroservice(
 		'userService',
 		onlyOnce(async () => {
-			const userServiceSocket = TypedWebSocket<{
-				status: 'available' | 'unavailable';
-				notification: GenericNotification;
-			}>(
-				new WebSocket(
-					`ws://${location.host}:${location.port}/api/core/user`,
-				),
-			);
-
-			await new Promise<void>((resolve, reject) => {
-				const state = {
-					// eslint-disable-next-line @typescript-eslint/no-empty-function
-					cleanup: () => {},
-				};
-
-				userServiceSocket.eventEmitter.addEventListener(
-					'ws:open',
-					() => {
-						state.cleanup();
-						resolve();
-					},
-				);
-				userServiceSocket.eventEmitter.addEventListener(
-					'ws:error',
-					ev => {
-						state.cleanup();
-						reject();
-					},
-				);
-
-				state.cleanup = () => {
-					userServiceSocket.eventEmitter.removeEventListener(
-						'ws:open',
-						state.cleanup,
-					);
-					userServiceSocket.eventEmitter.removeEventListener(
-						'ws:error',
-						state.cleanup,
-					);
-				};
-			});
-
-			userServiceSocket.eventEmitter.addEventListener(
-				'message:status',
-				status => {
-					events.dispatchEvent('service:status', status);
-				},
-			);
-
-			userServiceSocket.eventEmitter.addEventListener(
-				'message:notification',
-				notification => {
-					events.dispatchEvent('service:notification', notification);
-				},
-			);
-
-			await new Promise(resolve => setTimeout(resolve, 2500)); // Simulate network delay
 			return {
 				async authenticate(username, password) {
-					// path: /api/user/authenticate
-					// method: POST
-					const response = await fetch('/api/user/authenticate', {
+					// /api/core/auth/login
+					// using passport-local
+					const response = await fetch('/api/core/auth/login', {
 						method: 'POST',
-						body: JSON.stringify({ username, password }),
 						headers: {
 							'Content-Type': 'application/json',
 						},
+						body: JSON.stringify({ username, password }),
 					});
-					const result: StandardResponse<PublicUserProfile> =
-						await response.json();
-					if (!result.success) {
-						events.dispatchEvent(
-							'auth:loginfailed',
-							result.error.message,
-						);
-						throw new Error(result.error.message);
-					} else {
-						events.dispatchEvent('auth:login', result.content);
-						return result.content;
+					const json =
+						(await response.json()) as StandardResponse<PublicUserProfile>;
+					console.log(json);
+					if (json.success) {
+						return json.content;
 					}
+					throw new Error(json.error.message);
 				},
 				authEvents: events,
 			};
 		}),
 	);
-}, 2500);
+}, 500);

@@ -58,12 +58,11 @@ export function getTypedMongoCollection<
 	TDatabase extends MongoDatabaseKeys,
 	TCollection extends keyof MongoCollections<TDatabase>,
 >(database: TDatabase, collection: TCollection) {
-	return client.db(database).collection<
-		mongo.Document &
-			CollectionStructure<TDatabase, TCollection> & {
-				_id: mongo.ObjectId;
-			}
-	>(collection as string);
+	return client
+		.db(database)
+		.collection<mongo.WithId<CollectionStructure<TDatabase, TCollection>>>(
+			collection as string,
+		);
 }
 
 export type ServerSideDBOBject<T> = T & {
