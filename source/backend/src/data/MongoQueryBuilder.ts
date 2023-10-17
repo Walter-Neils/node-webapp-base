@@ -106,7 +106,7 @@ class MongoQueryBuilder<CollectionType> {
 						[X in K]: infer TCollectionStructure;
 					}
 						? TCollectionStructure
-						: never;
+						: unknown;
 				} & MongoCollection<TDatabase, TCollection>
 			>,
 		) => TPipeline,
@@ -187,8 +187,10 @@ const result = getMongoQueryBuilder('users', 'auth')
 			username: 'userId',
 		},
 		pipeline => {
-			return pipeline.where('userId', '$eq', '$$userId');
+			return pipeline
+				.where('userId', '$eq', '$$userId')
+				.where('severity', '$eq', 'error');
 		},
 		'notifications',
 	)
-	.test()[0];
+	.test()[0].notifications[0].severity;
