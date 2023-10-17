@@ -97,7 +97,7 @@ class MongoQueryBuilder<CollectionType> {
 		captures: TLocalCaptures,
 		pipelineBuilder: (
 			builder: MongoQueryBuilder<
-				MongoCollection<TDatabase, TCollection> & {
+				{
 					// TLocalCaptures maps a local field to a foreign lookup field
 					// So we extend the builder's collection type with the foreign lookup field type info
 					[K in keyof TLocalCaptures as TLocalCaptures[K] extends TLocalCaptureAlias
@@ -107,9 +107,9 @@ class MongoQueryBuilder<CollectionType> {
 					}
 						? TCollectionStructure
 						: never;
-				}
+				} & MongoCollection<TDatabase, TCollection>
 			>,
-		) => MongoQueryBuilder<TPipeline>,
+		) => TPipeline,
 		resultField: TResultField,
 	) {
 		const pipeline = pipelineBuilder(
@@ -127,7 +127,13 @@ class MongoQueryBuilder<CollectionType> {
 
 		return this as unknown as MongoQueryBuilder<
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			CollectionType & { [K in TResultField]: any }
+			CollectionType & {
+				[K in TResultField]: TPipeline extends MongoQueryBuilder<
+					infer T
+				>
+					? T[]
+					: never;
+			}
 		>;
 	}
 
@@ -152,6 +158,10 @@ class MongoQueryBuilder<CollectionType> {
 			}
 		>;
 	}
+
+	public test(): CollectionType[] {
+		return [];
+	}
 }
 
 type MongoCollection<
@@ -169,20 +179,16 @@ export function getMongoQueryBuilder<
 	return new MongoQueryBuilder<MongoCollections<TDatabase>[TCollection]>();
 }
 
-getMongoQueryBuilder('users', 'notifications')
-	.where('severity', '$eq', 'info')
-	.where('userId', '$eq', '123')
+const result = getMongoQueryBuilder('users', 'auth')
 	.lookup(
-		'infastructure',
-		'backend-configuration',
+		'users',
+		'notifications',
 		{
-			actions: 'notifActions',
+			username: 'userId',
 		},
-		builder => {
-			return builder
-				.getArrayItem('notifActions', 0, 'notifActions')
-				.replaceRoot('notifActions')
-				.excludeFields('actionKey');
+		pipeline => {
+			return pipeline.where('userId', '$eq', '$$userId');
 		},
-		'test',
-	);
+		'notifications',
+	)
+	.test()[0];
