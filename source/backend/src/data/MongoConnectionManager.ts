@@ -39,7 +39,7 @@ export type MongoCollections<Database extends MongoDatabaseKeys> = {
 		: never;
 };
 
-type CollectionStructure<
+export type CollectionStructure<
 	Database extends MongoDatabaseKeys,
 	Collection extends keyof MongoCollections<Database>,
 > = MongoDatabaseSchema extends {

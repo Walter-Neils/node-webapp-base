@@ -1,6 +1,9 @@
 import {
+	CollectionStructure,
 	MongoCollections,
 	MongoDatabaseKeys,
+	MongoDatabaseSchema,
+	getTypedMongoCollection,
 } from './MongoConnectionManager.js';
 
 type MongoComparisonOperator =
@@ -13,7 +16,26 @@ type MongoComparisonOperator =
 	| '$ne'
 	| '$nin';
 
-class MongoQueryBuilder<CollectionType extends Record<string, unknown>> {
+type FundamentalType = string | number | boolean | Date;
+
+type NonFundamentalFields<T> = {
+	[K in keyof T as T[K] extends FundamentalType ? never : K]: T[K];
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type InvertObject<T extends Record<any, any>> = { [K in T[keyof T]]: keyof T };
+
+type StringFieldsOnly<T> = {
+	[K in keyof T as T[K] extends string ? K : never]: T[K];
+};
+
+type ValuesOf<T> = T[keyof T];
+
+type KeyOverlaps<T, U> = Extract<keyof T, keyof U>;
+type StringOrDie<T> = T extends string ? T : never;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+class MongoQueryBuilder<CollectionType extends {}> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private components: any[] = [];
 
@@ -44,7 +66,78 @@ class MongoQueryBuilder<CollectionType extends Record<string, unknown>> {
 		// TODO: Narrow string literal type of field if operator is $eq
 		return this as unknown as MongoQueryBuilder<CollectionType>;
 	}
+
+	public replaceRoot<
+		TFields extends keyof NonFundamentalFields<CollectionType>,
+	>(target: TFields) {
+		this.components.push({
+			$replaceRoot: {
+				newRoot: target,
+			},
+		});
+
+		return this as unknown as MongoQueryBuilder<CollectionType[TFields]>;
+	}
+
+	public lookup<
+		TDatabase extends MongoDatabaseKeys,
+		TCollection extends keyof MongoCollections<TDatabase>,
+		TLocalCaptureAlias extends string,
+		TLocalCaptures extends Partial<{
+			// Map from local field to foreign field
+			[K in keyof CollectionType]: TLocalCaptureAlias;
+		}>,
+		TPipeline extends MongoQueryBuilder<
+			MongoCollections<TDatabase>[TCollection]
+		>,
+		TResultField extends string,
+	>(
+		database: TDatabase,
+		collection: TCollection,
+		captures: TLocalCaptures,
+		pipelineBuilder: (
+			builder: MongoQueryBuilder<
+				MongoCollection<TDatabase, TCollection> & {
+					// TLocalCaptures maps a local field to a foreign lookup field
+					// So we extend the builder's collection type with the foreign lookup field type info
+					[K in keyof TLocalCaptures as TLocalCaptures[K] extends TLocalCaptureAlias
+						? TLocalCaptures[K]
+						: never]: CollectionType extends {
+						[X in K]: infer TCollectionStructure;
+					}
+						? TCollectionStructure
+						: never;
+				}
+			>,
+		) => MongoQueryBuilder<TPipeline>,
+		resultField: TResultField,
+	) {
+		const pipeline = pipelineBuilder(
+			getMongoQueryBuilder(database, collection),
+		);
+
+		this.components.push({
+			$lookup: {
+				from: collection,
+				let: captures,
+				pipeline: pipeline.components,
+				as: resultField,
+			},
+		});
+
+		return this as unknown as MongoQueryBuilder<
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			CollectionType & { [K in TResultField]: any }
+		>;
+	}
 }
+
+type MongoCollection<
+	TDatabase extends MongoDatabaseKeys,
+	TCollection extends keyof MongoCollections<TDatabase>,
+> = MongoCollections<TDatabase>[TCollection] extends Record<string, unknown>
+	? MongoCollections<TDatabase>[TCollection]
+	: never;
 
 export function getMongoQueryBuilder<
 	TDatabase extends MongoDatabaseKeys,
@@ -56,4 +149,15 @@ export function getMongoQueryBuilder<
 
 getMongoQueryBuilder('users', 'notifications')
 	.where('severity', '$eq', 'info')
-	.where('userId', '$eq', '123');
+	.where('userId', '$eq', '123')
+	.lookup(
+		'infastructure',
+		'backend-configuration',
+		{
+			actions: 'notifActions',
+		},
+		builder => {
+			return builder;
+		},
+		'test',
+	);
