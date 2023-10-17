@@ -35,7 +35,7 @@ type KeyOverlaps<T, U> = Extract<keyof T, keyof U>;
 type StringOrDie<T> = T extends string ? T : never;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-class MongoQueryBuilder<CollectionType extends {}> {
+class MongoQueryBuilder<CollectionType> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private components: any[] = [];
 
@@ -130,6 +130,28 @@ class MongoQueryBuilder<CollectionType extends {}> {
 			CollectionType & { [K in TResultField]: any }
 		>;
 	}
+
+	public getArrayItem<
+		TKey extends keyof CollectionType,
+		TIndex extends number,
+		TResultKey extends string,
+	>(key: TKey, index: TIndex, destination: TResultKey) {
+		this.components.push({
+			$project: {
+				[destination]: {
+					$arrayElemAt: [key, index],
+				},
+			},
+		});
+
+		return this as unknown as MongoQueryBuilder<
+			Exclude<CollectionType, TResultKey> & {
+				[K in TResultKey]: CollectionType[TKey] extends unknown[]
+					? CollectionType[TKey][TIndex]
+					: never;
+			}
+		>;
+	}
 }
 
 type MongoCollection<
@@ -157,7 +179,10 @@ getMongoQueryBuilder('users', 'notifications')
 			actions: 'notifActions',
 		},
 		builder => {
-			return builder;
+			return builder
+				.getArrayItem('notifActions', 0, 'notifActions')
+				.replaceRoot('notifActions')
+				.excludeFields('actionKey');
 		},
 		'test',
 	);
