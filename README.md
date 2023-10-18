@@ -1,79 +1,78 @@
-# Node Webapp Base
+# Webapp Template
 
-This project is a base for a node-based web application.
+## Organization
 
-## Architecture
+Service source code is organized under the `source` directory. Docker files are under the `docker` directory, and further organized by service.
 
-This project is designed around the microservice architecture. By default, it comes with 3 services: the backend service, the frontend service, and the router service. The router service is the only service that is exposed to the outside world. It is responsible for routing requests to the correct service. The backend service is responsible for handling all backend logic. The frontend service is responsible for serving the result of compiling the frontend code.
+## Requirements
 
-## Directory Structure
+- NodeJS
+- NPM
+- Docker
+- Docker Compose
 
-- **docker**
-  - **backend**
-    - **Dockerfile**: The Dockerfile for the backend service.
-    - **build.sh**: A script for building the backend service.
-    - **metadata.sh**: A script containing metadata about the backend service. This is used to name the image after it is built.
-    - **nginx.conf**: The nginx configuration file for the backend service.
-  - **frontend**
-    - **Dockerfile**: The Dockerfile for the frontend service.
-    - **build.sh**: A script for building the frontend service.
-    - **metadata.sh**: A script containing metadata about the frontend service. This is used to name the image after it is built.
-    - **nginx.conf**: The nginx configuration file for the frontend service.
-  - **router**
-    - **Dockerfile**: The Dockerfile for the router service.
-    - **build.sh**: A script for building the router service.
-    - **metadata.sh**: A script containing metadata about the router service. This is used to name the image after it is built.
-    - **nginx.conf**: The nginx configuration file for the router service.
-  - **compose**
-    - **docker-compose.yml**: The docker-compose file for the project.
-    - **.env**: The environment file for the project.
-- **docs**: The documentation for the project.
-- **utilities**: The utilities for the project.
-- **source**: The source code for the project.
-  - **backend**: The source code for the backend service.
-  - **frontend**: The source code for the frontend service.
+## Installation
 
-## Getting Started
+In each service source directory using NPM (e.g. `source/frontend`), run `npm install` to install dependencies. At the time of writing, this is required for the `frontend` and `backend` services.
 
-To get started, you will need to install [Docker](https://docs.docker.com/install/) and [Docker Compose](https://docs.docker.com/compose/install/). You'll also need NPM and NodeJS installed on your machine. If you're on Arch Linux you can run the following script to install all of the dependencies:
+## Running a Development Environment
 
-```bash
-sudo pacman -S docker docker-compose nodejs npm
-sudo usermod -aG docker $USER
+### Setting up the environment
+
+In the `docker/compose` directory, create a file called `.env` with the following contents:
+
+```env
+MONGO_HOST=mongodb:27017
+MONGO_USERNAME=admin
+MONGO_PASSWORD=password
+REDIS_HOST=redis
 ```
 
-You might need to log out and log back in for the usermod command to take effect. You'll know you need to do this if you get a permission denied error when running docker commands.
+#### Values to Change
 
-## Building Components
+If you're not hosting MongoDB and Redis in Docker, change the values of `MONGO_HOST` and `REDIS_HOST` to the appropriate values. You'll also need to change the values of `MONGO_USERNAME` and `MONGO_PASSWORD` if you're not using the default MongoDB credentials.
 
-You'll need to install the dependencies for each component before you can build them. To do this, run the following command in each component's directory:
+### Starting the data services
 
-```bash
-npm install
-```
+You _DO NOT_ want to start all services. Instead, start only those which you are not actively developing. Most of the time, you'll be working on the backend, and making changes to the frontend. In this case, you don't want to start either of these through Docker, but instead run them locally.
 
-This will install all of the dependencies for the component.
+You do want to start the `mongo` and `redis` services (if you're using them). To do this, run `docker-compose up mongo redis` from the `docker/compose` directory.
 
-## Running in Development
+See the setup instructions for other services to determine what database modifications you need to make.
 
-All TypeScript-based projects come with a development mode. This mode will watch the source code for changes and automatically recompile the code when changes are detected. To run the project in development mode, run the following command:
+### Starting the development proxy service
 
-```bash
-npm run start
-```
-
-Note: You will need to run this command in each component's directory.
-
-You might need to edit the router service's NGINX configuration file to point at the correct port for the service you're running in development mode. Specifically, you'll need to proxy requests to the correct port. For the UI, this is port 3000. For the backend, this is port 5000. You can find the NGINX configuration file for the router service in the docker/router directory.
-
-## Building for Production
-
-In the docker/compose directory, there's a `buildAll.sh` script. This script will build all of the components docker images. You can then run the project in production mode by running the following command:
+The application expects the backend to be available at the same host as the frontend was served from. As such, a proxy is required to 'join' the two services together. This is done through the `dev` service. _IMPORTANT_: You need to edit the `nginx.conf` file in the dev service directory so the `host` declarations point to the correct IP address. You **CANNOT** point the host values at any variant of `localhost`, as `localhost` points back at the docker container for applications running inside. In other words, you need to put in a non-loopback address (or just a nonstandard loopback address, if you maintain one) for the host targets. Navigate to the `docker/dev` directory and run `./build.sh`. This will build the dev service, which is a simple NGINX proxy. Once built, you'll want to run the `dev:latest` container and expose port 80 to some port on your host machine. For example, if you expose port 80 to port 8080, you'll be able to access the application at `http://localhost:8080`.
+For example,
 
 ```bash
-docker-compose up
+# In the docker/dev directory
+./build.sh
+docker run --name dev -p 8080:80 dev:latest
 ```
 
-## Deploying to Production
+This will proxy requests for the frontend to `<SELF_IP>:3000` and requests for the backend to `<SELF_IP>:5000`. This command will not exit until stopped (CTRL+C), so you'll need to open a new terminal window to continue.
 
-Depends on the container registry you're using.
+### Starting development services
+
+Once you have your dev proxy service running, you'll need to start the services you're actively developing. Let's assume you're working on the frontend and backend. To start the frontend service, you'll need to navigate to `source/frontend` and run `npm run start`. This will start the frontend service on port 3000. To start the backend service, you'll need to navigate to `source/backend` and run `npm run start`. This will start the backend service on port 5000. You can now access the application at `http://localhost:8080` (if that's the port you chose when setting up the dev service). You can now make changes to the frontend and backend services and see them reflected in the application.
+
+### Stopping the development environment
+
+Just `CTRL+C` the dev proxy service and the services you're actively developing. Then, run `docker-compose down` from the `docker/compose` directory to stop the data services.
+
+## Running a Production Environment
+
+You need a method to store and retrieve your services from (AWS ECR or the likes). Authentication & setup will vary. Once you have your services available, you'll need to edit the `.env` file in the `docker/compose` directory to point to the correct services. In the case of AWS ECR, you'll need to change the `CONTAINER_IMAGE_HOST` variable to point at the correct ECR repository. You'll also need to change the container image tag variables for each service, which are generally in the format `<service name>_IMAGE_TAG`. Once you've done this, you can run `docker-compose up <names of services>` from the `docker/compose` directory to start the application. You can then access the application at port 80/443 (HTTP/HTTPS). **DO NOT** host your own instance of the data services. Instead, use a managed service such as AWS RDS or AWS ElastiCache. You'll need to change the values of `MONGO_HOST` and `REDIS_HOST` in the `.env` file to point at the correct services. You don't want to lose all your data to a random accident. You also don't want to start these services on the production server as they're exposed to the internet.
+
+## LFS (Large File Storage)
+
+**DO NOT** store large files inside your docker images if at all possible. In the `docker/static-content` folder, there's a docker container designed to proxy requests to an AWS S3 bucket. This is the preferred method of storing large files. You'll need to edit the `nginx.conf` file in the `docker/static-content` directory to point at the correct S3 bucket. You'll also need to edit the `docker-compose.yml` file in the `docker/compose` directory to include the `static-content` service. You'll also need to edit the `docker/router` service NGINX configuration to route requests to the static content service.
+
+## HTTPS
+
+HTTPS is handled by the `router` service. You'll need to edit the `docker/router` service NGINX configuration to include your SSL certificates. This should be the only service exposed to the internet in a production environment. It should be the only service using SSL certificates.
+
+## MongoDB Structure
+
+The MongoDB database shouldn't need any special configuration. The application will create the database and collections as needed. All configuration for services should be under the `infastructure` database, with a collection per service as applicable. The schema of each collection is defined by the service which uses it.

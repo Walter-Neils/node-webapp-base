@@ -8,8 +8,14 @@ import { WithId } from 'mongodb';
 import { logger } from '../core/logging.js';
 import generateGUID from '../misc/Guid.js';
 import { expressApp } from '../core/express.js';
+// Hashing passwords
+import bcrypt from 'bcrypt';
 
 const userCollection = getTypedMongoCollection('users', 'auth');
+
+function hashPassword(password: string) {
+	return bcrypt.hashSync(password, 'keyboard cat');
+}
 
 passport.use(
 	new PassportLocal.Strategy(async (username, password, done) => {
@@ -17,7 +23,7 @@ passport.use(
 		if (user === null) {
 			return done(null, false, { message: 'Incorrect username.' });
 		}
-		if (user.password !== password) {
+		if (user.password !== hashPassword(password)) {
 			return done(null, false, { message: 'Incorrect password.' });
 		}
 		user.sessionToken = generateGUID();
@@ -45,4 +51,5 @@ passport.deserializeUser(async (id, done) => {
 	}
 });
 
-expressApp.use(passport.authenticate('session'));
+// TODO: Check performance of this
+expressApp.use(passport.authenticate('session')); // Authenticate all requests

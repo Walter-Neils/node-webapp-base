@@ -59,6 +59,7 @@ const errorRequestHandler: express.ErrorRequestHandler = (
 expressApp.use(errorRequestHandler);
 
 // MESSES WITH AUTH. DO NOT USE ATM
+// FIXME: This is a hack to make sure that all errors are caught and passed to next().
 // eslint-disable-next-line no-constant-condition
 if (false) {
 	const overriddenExpressFunctions = {

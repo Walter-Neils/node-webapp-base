@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb';
 import { BasicUserProfile } from '../clientShared/UserInterface.js';
 import { expressApp } from '../core/express.js';
 import { getTypedMongoCollection } from '../data/MongoConnectionManager.js';
+import { getMongoQueryBuilder } from '../data/MongoQueryBuilder.js';
 
 declare module '../data/MongoConnectionManager.js' {
 	interface MongoDatabaseSchema {
@@ -19,6 +20,7 @@ expressApp.get('/api/core/profile/currentUser', async (req, res) => {
 		res.standardFormat.error.json(new Error('Not logged in'));
 		return;
 	}
+
 	const profile = await profileCollection.findOne({
 		userID: req.user._id,
 	});
