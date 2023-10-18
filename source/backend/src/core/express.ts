@@ -3,6 +3,8 @@ import express from 'express';
 import expressWs from 'express-ws';
 // Express session
 import session from 'express-session';
+import { ObjectId } from 'mongodb';
+import { PrivateUserProfile } from '../clientShared/UserInterface.js';
 
 export const expressApp = express();
 
@@ -17,6 +19,15 @@ declare global {
 				path: string,
 				handler: (ws: WebSocket, req: express.Request) => void,
 			) => void;
+		}
+	}
+}
+
+declare global {
+	// eslint-disable-next-line @typescript-eslint/no-namespace
+	namespace Express {
+		interface User extends PrivateUserProfile {
+			_id: ObjectId;
 		}
 	}
 }

@@ -1,9 +1,13 @@
 import * as PassportLocal from 'passport-local';
 import passport from 'passport';
-import { getTypedMongoCollection } from '../data/MongoConnectionManager.js';
-import { PrivateUserProfile } from '../clientShared/UserInterface.js';
-import { ObjectId, WithId } from 'mongodb';
+import {
+	MongoDatabaseSchema,
+	getTypedMongoCollection,
+} from '../data/MongoConnectionManager.js';
+import { WithId } from 'mongodb';
 import { logger } from '../core/logging.js';
+import generateGUID from '../misc/Guid.js';
+import { expressApp } from '../core/express.js';
 
 const userCollection = getTypedMongoCollection('users', 'auth');
 
@@ -11,28 +15,34 @@ passport.use(
 	new PassportLocal.Strategy(async (username, password, done) => {
 		const user = await userCollection.findOne({ username });
 		if (user === null) {
-			logger.info(`Failed login attempt for user ${username}`);
 			return done(null, false, { message: 'Incorrect username.' });
 		}
 		if (user.password !== password) {
-			logger.info(`Failed login attempt for user ${username}`);
 			return done(null, false, { message: 'Incorrect password.' });
 		}
-		logger.info(`Successful login attempt for user ${username}`);
+		user.sessionToken = generateGUID();
+		userCollection.updateOne(
+			{ _id: user._id },
+			{ $set: { sessionToken: user.sessionToken } },
+		);
+		logger.info(
+			`User ${user.username} logged in (sessionToken: ${user.sessionToken})`,
+		);
 		return done(null, user);
 	}),
 );
 passport.serializeUser((_user, done) => {
-	const user = _user as WithId<PrivateUserProfile>;
-	console.log('serializeUser', user);
-	done(null, user._id);
+	const user = _user as WithId<MongoDatabaseSchema['users.auth']>;
+	done(null, user.sessionToken);
 });
 
 passport.deserializeUser(async (id, done) => {
-	const user = await userCollection.findOne({ _id: id as ObjectId });
+	const user = await userCollection.findOne({ sessionToken: id as string });
 	if (user === null) {
 		done('Failed to find user', null);
 	} else {
 		done(null, user);
 	}
 });
+
+expressApp.use(passport.authenticate('session'));
