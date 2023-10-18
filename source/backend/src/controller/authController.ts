@@ -1,4 +1,3 @@
-import { PrivateUserProfile } from '../clientShared/UserInterface.js';
 import { expressApp } from '../core/express.js';
 // Passport
 import passport from 'passport';
@@ -10,11 +9,10 @@ import { WithId } from 'mongodb';
 declare module '../data/MongoConnectionManager.js' {
 	interface MongoDatabaseSchema {
 		'users.auth': {
+			username: string;
 			password: string;
 			sessionToken: string;
-		} & PrivateUserProfile & {
-				sessionToken: string;
-			};
+		};
 	}
 }
 
@@ -48,17 +46,12 @@ expressApp.post('/api/core/auth/createAccount', async (req, res) => {
 	const newUser: MongoDatabaseSchema['users.auth'] = {
 		username,
 		password,
-		displayName: username,
-		email: '',
-		profilePictureURL: '',
-		permissions: [],
 		sessionToken: '',
-		handle: username,
 	};
-	await userCollection.insertOne(
+	const result = await userCollection.insertOne(
 		newUser as WithId<MongoDatabaseSchema['users.auth']>,
 	);
-	res.standardFormat.success.json('Success');
+	res.standardFormat.success.json(result.insertedId);
 });
 
 expressApp.get('/api/core/auth/currentUser', (req, res) => {

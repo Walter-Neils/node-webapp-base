@@ -1,13 +1,6 @@
-export type PublicUserProfile = {
+export type BasicUserProfile = {
 	displayName: string;
-	handle: string;
-	profilePictureURL: string;
-};
-
-export type PrivateUserProfile = PublicUserProfile & {
-	username: string;
-	email: string;
-	permissions: string[];
+	profilePictureURL?: string;
 };
 
 export type ClientSideDBOBject<T> = T & {

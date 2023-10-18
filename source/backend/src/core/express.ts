@@ -4,7 +4,7 @@ import expressWs from 'express-ws';
 // Express session
 import session from 'express-session';
 import { ObjectId } from 'mongodb';
-import { PrivateUserProfile } from '../clientShared/UserInterface.js';
+import { MongoDatabaseSchema } from '../data/MongoConnectionManager.js';
 
 export const expressApp = express();
 
@@ -23,10 +23,11 @@ declare global {
 	}
 }
 
+type UserAuthenticationEntry = MongoDatabaseSchema['users.auth'];
 declare global {
 	// eslint-disable-next-line @typescript-eslint/no-namespace
 	namespace Express {
-		interface User extends PrivateUserProfile {
+		interface User extends UserAuthenticationEntry {
 			_id: ObjectId;
 		}
 	}

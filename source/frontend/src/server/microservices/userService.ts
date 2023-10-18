@@ -1,6 +1,5 @@
 import { enqueueSnackbar } from 'notistack';
 import { StandardResponse } from '../../clientShared/StandardResponse';
-import { TypedWebSocket } from '../../clientShared/TypedWebSocket';
 import { PublicUserProfile } from '../../clientShared/UserInterface';
 import './Microservice';
 import {
