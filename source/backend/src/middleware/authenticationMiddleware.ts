@@ -4,12 +4,21 @@ import {
 	MongoDatabaseSchema,
 	getTypedMongoCollection,
 } from '../data/MongoConnectionManager.js';
-import { WithId } from 'mongodb';
+import { ObjectId, WithId } from 'mongodb';
 import { logger } from '../core/logging.js';
-import generateGUID from '../misc/Guid.js';
 import { expressApp } from '../core/express.js';
 // Hashing passwords
 import bcrypt from 'bcrypt';
+
+declare module '../data/MongoConnectionManager.js' {
+	interface MongoDatabaseSchema {
+		'users.sessionTokens': {
+			user: ObjectId;
+			sessionToken: string;
+			validUntil: Date;
+		};
+	}
+}
 
 const userCollection = getTypedMongoCollection('users', 'auth');
 
@@ -33,24 +42,19 @@ passport.use(
 			logger.warn(`User ${username} failed to log in (wrong password)`);
 			return done(null, false, { message: 'Incorrect password.' });
 		}
-		user.sessionToken = generateGUID();
-		userCollection.updateOne(
-			{ _id: user._id },
-			{ $set: { sessionToken: user.sessionToken } },
-		);
-		logger.info(
-			`User ${user.username} logged in (sessionToken: ${user.sessionToken})`,
-		);
+
 		return done(null, user);
 	}),
 );
 passport.serializeUser((_user, done) => {
 	const user = _user as WithId<MongoDatabaseSchema['users.auth']>;
-	done(null, user.sessionToken);
+	done(null, user._id);
 });
 
 passport.deserializeUser(async (id, done) => {
-	const user = await userCollection.findOne({ sessionToken: id as string });
+	const user = await userCollection.findOne({
+		_id: new ObjectId(id as unknown as string),
+	});
 	if (user === null) {
 		done('Failed to find user', null);
 	} else {

@@ -7,13 +7,11 @@ import {
 } from '../data/MongoConnectionManager.js';
 import { WithId } from 'mongodb';
 import { hashPassword } from '../middleware/authenticationMiddleware.js';
-import delay from '../misc/delay.js';
 declare module '../data/MongoConnectionManager.js' {
 	interface MongoDatabaseSchema {
 		'users.auth': {
 			username: string;
 			password: string;
-			sessionToken: string;
 		};
 	}
 }
@@ -23,8 +21,6 @@ expressApp.post(
 	'/api/core/auth/login',
 	passport.authenticate('local'),
 	async (req, res) => {
-		await delay(2500);
-
 		if (req.user !== undefined) {
 			const user = req.user;
 			await new Promise<void>((resolve, reject) =>
@@ -56,7 +52,6 @@ expressApp.post('/api/core/auth/createAccount', async (req, res) => {
 	const newUser: MongoDatabaseSchema['users.auth'] = {
 		username,
 		password,
-		sessionToken: '',
 	};
 	const result = await userCollection.insertOne(
 		newUser as WithId<MongoDatabaseSchema['users.auth']>,
