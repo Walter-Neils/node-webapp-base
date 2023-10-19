@@ -4,6 +4,8 @@ import Header from "../buildingblocks/Header";
 import { RequiresMicroservice } from "../buildingblocks/conditionals/microservice/RequiresMicroservice";
 import { usePromise } from "../hooks/Promise";
 import { useEffect, useState } from "react";
+import { enqueueSnackbar } from "notistack";
+import LoginPage from "./LoginPage";
 export type HomePageProps = Record<string, never>;
 
 function useService<TKey extends keyof Microservices>(service: TKey)
@@ -45,14 +47,7 @@ export default function HomePage()
     return (
         <>
             <Header title="Home" />
-            {
-                userService.state === 'rejected' && <Alert severity="error">{ userService.reason?.message ?? 'Unknown Error' }</Alert>
-            }
-            {
-                userService.state === 'fulfilled' && userService.value !== undefined && <>
-                    <Button variant="contained" onClick={ () => userService.value.authenticate('test', '123') }>Login</Button>
-                </>
-            }
+            <LoginPage />
         </>
     );
 }

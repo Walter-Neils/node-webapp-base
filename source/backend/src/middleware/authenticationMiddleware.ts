@@ -13,17 +13,24 @@ import bcrypt from 'bcrypt';
 
 const userCollection = getTypedMongoCollection('users', 'auth');
 
-function hashPassword(password: string) {
-	return bcrypt.hashSync(password, 'keyboard cat');
+export function hashPassword(password: string) {
+	return bcrypt.hashSync(password, 10);
+}
+
+function checkPassword(password: string, hash: string) {
+	return bcrypt.compareSync(password, hash);
 }
 
 passport.use(
 	new PassportLocal.Strategy(async (username, password, done) => {
 		const user = await userCollection.findOne({ username });
 		if (user === null) {
+			logger.warn(`User ${username} failed to log in (user not found)`);
 			return done(null, false, { message: 'Incorrect username.' });
 		}
-		if (user.password !== hashPassword(password)) {
+		// Check password
+		if (!checkPassword(password, user.password)) {
+			logger.warn(`User ${username} failed to log in (wrong password)`);
 			return done(null, false, { message: 'Incorrect password.' });
 		}
 		user.sessionToken = generateGUID();

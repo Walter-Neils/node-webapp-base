@@ -1,6 +1,8 @@
 import EventEmitter from 'events';
 import TypedEventEmitter from '../../clientShared/TypedEventListener';
 import { enqueueSnackbar } from 'notistack';
+import React, { useEffect } from 'react';
+import { usePromise } from '../../components/hooks/Promise';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface Microservices {}
@@ -86,4 +88,28 @@ export function unregisterMicroservice<TKey extends keyof Microservices>(
 	(microserviceProviders[key] as any) = undefined;
 	console.log(`Unregistered microservice ${key}`);
 	microserviceManagerEvents.dispatchEvent(`unregistered:${key}`, key);
+}
+
+export function useMicroservice<TKey extends keyof Microservices>(
+	target: TKey,
+) {
+	const [service, setService] = usePromise(() => getMicroservice(target));
+
+	useEffect(() => {
+		const listener = () => {
+			setService(getMicroservice(target));
+		};
+		microserviceManagerEvents.addEventListener(
+			`registered:${target}`,
+			listener,
+		);
+		return () => {
+			microserviceManagerEvents.removeEventListener(
+				`registered:${target}`,
+				listener,
+			);
+		};
+	}, []);
+
+	return [service];
 }
