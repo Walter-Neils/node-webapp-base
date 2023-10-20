@@ -2,10 +2,9 @@ import { Avatar, Badge, Box, Button, Card, CircularProgress, Collapse, Fade, Lin
 import React, { useEffect } from "react";
 import { TransitionGroup } from "react-transition-group";
 import "../../logo.svg";
-import { usePromise } from "../hooks/Promise";
-import { getMicroservice, useMicroservice } from "../../server/microservices/Microservice";
 import { enqueueSnackbar } from "notistack";
 import CheckIcon from '@mui/icons-material/Check';
+import { useMicroservice } from "../../server/microservices/Microservice";
 
 export default function LoginPage(props: Record<string, never>)
 {
@@ -56,9 +55,10 @@ export default function LoginPage(props: Record<string, never>)
 
     const setUserAvatar = React.useCallback(async () =>
     {
-        setIsAvatarLoading(true);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setIsAvatarLoading(false);
+        // setIsAvatarLoading(true);
+
+        // await new Promise((resolve) => setTimeout(resolve, 1000));
+        // setIsAvatarLoading(false);
     }, [ userService, username ]);
 
     React.useEffect(() =>

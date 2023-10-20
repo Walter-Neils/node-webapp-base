@@ -47,7 +47,6 @@ export default function HomePage()
     return (
         <>
             <Header title="Home" />
-            <LoginPage />
         </>
     );
 }
