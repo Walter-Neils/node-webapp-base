@@ -3,9 +3,10 @@ import './App.css';
 import './server/microservices';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { SnackbarProvider, enqueueSnackbar } from 'notistack';
-import { Alert, Box, Button, Card, CircularProgress, Collapse, Fade, LinearProgress, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CircularProgress, Collapse, CssBaseline, Fade, LinearProgress, ThemeProvider, Typography, createTheme } from '@mui/material';
 import { useTimeout } from './components/hooks/ClockEvents';
 import { ErrorBoundary } from './components/buildingblocks/conditionals/errorboundaries/ErrorBoundary';
+import { useTextElements } from './components/buildingblocks/text/TextScaleContext';
 
 const HomePage = React.lazy(() => import('./components/pages/HomePage'));
 const LoginPage = React.lazy(async () =>
@@ -14,11 +15,13 @@ const LoginPage = React.lazy(async () =>
   return import('./components/pages/LoginPage');
 });
 
+const PortfolioPage = React.lazy(() => import('./components/pages/PortfolioPage'));
+
 
 function EncaseSuspense(props: { children: React.ReactNode; })
 {
   const [ isTakingLongerThanExpected, setIsTakingLongerThanExpected ] = React.useState(false);
-
+  const { Body } = useTextElements('Major Mono Display', 'body');
   useTimeout(() =>
   {
     setIsTakingLongerThanExpected(true);
@@ -59,7 +62,7 @@ function EncaseSuspense(props: { children: React.ReactNode; })
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          height: '100vh'
+          height: '100vh',
         } }>
           <Box sx={ {
             // Stack children vertically
@@ -67,11 +70,14 @@ function EncaseSuspense(props: { children: React.ReactNode; })
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
+            // Vertical spacing between children
+            gap: 2,
+            width: '75%'
           } }>
             <Collapse in={ isTakingLongerThanExpected }>
-              <Typography variant='body1' color='GrayText' gutterBottom>
-                Something's taking longer than expected...
-              </Typography>
+              <Body>
+                This is taking longer than expected
+              </Body>
             </Collapse>
             <LinearProgress sx={ {
               width: '100%',
@@ -88,17 +94,32 @@ function EncaseSuspense(props: { children: React.ReactNode; })
   );
 }
 
+const darkTheme = createTheme({
+  palette: {
+    mode: 'dark',
+  },
+  // typography: {
+  //   fontFamily: [ 'Major Mono Display', 'monospace' ].join(','),
+  // },
+});
+
+const lightTheme = createTheme({ palette: { mode: 'light' } });
+
 function App()
 {
   return (
-    <SnackbarProvider maxSnack={ 3 }>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={ <EncaseSuspense><HomePage /></EncaseSuspense> } />
-          <Route path="/login" element={ <EncaseSuspense><LoginPage /></EncaseSuspense> } />
-        </Routes>
-      </BrowserRouter>
-    </SnackbarProvider>
+    <ThemeProvider theme={ darkTheme }>
+      <CssBaseline />
+      <SnackbarProvider maxSnack={ 3 }>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={ <EncaseSuspense><HomePage /></EncaseSuspense> } />
+            <Route path="/login" element={ <EncaseSuspense><LoginPage /></EncaseSuspense> } />
+            <Route path="/portfolio" element={ <EncaseSuspense><PortfolioPage /></EncaseSuspense> } />
+          </Routes>
+        </BrowserRouter>
+      </SnackbarProvider>
+    </ThemeProvider>
   );
 }
 
