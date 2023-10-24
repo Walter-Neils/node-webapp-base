@@ -75,6 +75,7 @@ function displayNotification(notification: GenericNotification) {
 
 setTimeout(() => {
 	const events = getMicroserviceEventEmitter('userService');
+	if (!events) throw new Error('events is undefined');
 
 	events.addEventListener('service:status', status => {
 		console.log(`UserService status change: ${status}`);

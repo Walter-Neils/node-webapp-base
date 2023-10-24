@@ -1,7 +1,11 @@
+import { Box } from "@mui/material";
 import { Microservices, getMicroservice, isMicroserviceRegistered, microserviceManagerEvents } from "../../server/microservices/Microservice";
 import Header from "../buildingblocks/Header";
+import BlogEntryPreview, { BlogEntryPreviewProps } from "../buildingblocks/blogging/BlogEntryPreview";
 import { usePromise } from "../hooks/Promise";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { LoremIpsum } from "lorem-ipsum";
+import { useInterval } from "../hooks/ClockEvents";
 export type HomePageProps = Record<string, never>;
 
 function useService<TKey extends keyof Microservices>(service: TKey)
@@ -60,11 +64,64 @@ function useServiceV2<TKey extends keyof Microservices>(service: TKey)
     return promise.state === 'fulfilled' ? promise.value : undefined;
 }
 
+function generateLoremIpsum()
+{
+    const lorem = new LoremIpsum({
+        sentencesPerParagraph: {
+            max: 8,
+            min: 4
+        },
+        wordsPerSentence: {
+            max: 16,
+            min: 4
+        }
+    });
+    return lorem.generateParagraphs(2);
+}
+
 export default function HomePage()
 {
+    const [ entries, setEntries ] = useState<BlogEntryPreviewProps[]>([]);
+    useInterval(() =>
+    {
+        setEntries((entries) =>
+        {
+            const newEntries = [ ...entries ];
+            if (newEntries.length > 0)
+            {
+                newEntries.splice(0, 1);
+            }
+            newEntries.push({
+                title: 'Article Title',
+                authorName: 'Author Name',
+                authorImage: 'https://i.pravatar.cc/300',
+                verified: true,
+                date: new Date(),
+                content: generateLoremIpsum()
+            });
+            return newEntries;
+        });
+    }, 1000);
     return (
         <>
             <Header title="Home" />
+            <Box sx={ {
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                width: '100%'
+            } }>
+                {
+                    entries.map((entry, index) =>
+                    {
+                        return (
+                            <BlogEntryPreview key={ index } { ...entry } />
+                        );
+                    })
+                }
+            </Box>
         </>
     );
 }

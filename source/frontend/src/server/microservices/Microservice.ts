@@ -20,12 +20,13 @@ const microserviceEventEmitters: Partial<{
 export function getMicroserviceEventEmitter<
 	TMicroserviceKey extends keyof Microservices,
 >(microserviceKey: TMicroserviceKey) {
-	if (!microserviceEventEmitters[microserviceKey]) {
+	let eventEmitter = microserviceEventEmitters[microserviceKey];
+	if (!eventEmitter) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(microserviceEventEmitters[microserviceKey] as any) =
+		eventEmitter = (microserviceEventEmitters[microserviceKey] as any) =
 			new TypedEventEmitter(new EventEmitter());
 	}
-	return microserviceEventEmitters[microserviceKey]!;
+	return eventEmitter;
 }
 
 const microserviceProviders: Partial<{
