@@ -1,6 +1,6 @@
 # Webapp Template
 
-Walter Neils, 2024
+Walter Neils, 2023
 
 Note: This README is currently in a state of flux as I get documentation organized. Look in the `docs` directory for content which is more likely to be up to date.
 
