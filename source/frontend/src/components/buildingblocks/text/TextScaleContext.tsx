@@ -61,6 +61,14 @@ const contexts = {
                 case 'heading':
                     props.variant = 'h4';
                     props.color = 'primary';
+                    // Underline
+                    props.sx = {
+                        borderBottom: '3px solid',
+                        borderColor: 'primary.main',
+                        paddingBottom: '0.1em',
+                        padding: '0.2em',
+                        textAlign: 'center',
+                    };
                     break;
                 case 'subheading':
                     props.variant = 'h5';
