@@ -4,13 +4,22 @@ See the [README](../../README.md) for general setup instructions.
 
 ## Adding the first user
 
-Assuming you've decided to continue to use the default `passport.js` `local` authentication strategy, user data is stored in the Mongo cluster, specifically in a database called `users`. You'll need to create a new value in a collection called `auth`. The value should have the structure of:
+Adding the first user is fairly simple. The authentication controller exposes a method called `createAccount` which can be used to create a new user. It's located at `http(s?)://<HOSTNAME>:(80|443)/api/core/auth/createAccount`. To create an account, send a `POST` request with the following body:
 
-```typescript
+```json
 {
-  username: string;
-  password: string;
+  "username": "some_username",
+  "password": "some_password"
 }
 ```
 
-The `username` field is straitforward. The `password` field is the result of running the user's desired password through the salt and hashing system. At the time of writing, this is changing a decent bit, so I can't leave a surefire way of doing this. You'll need to go look at the backend service's `auth` middleware [here](../../source/backend/src/middleware/authenticationMiddleware.ts) to figure out how to do this. You shouldn't need to set up the other user data collections off the bat, as they should be created as needed. Yell at me if that's not the case.
+Assuming the request is successful, you'll receive a response with a status code of `200` and a standard formatted response where the content property contains the new user's ID. The ID is a MongoDB ObjectID. You won't need to use this ID for anything unless you're directly interacting with the database. The response will look something like this:
+
+```json
+{
+  "success": true,
+  "content": "653c278cda8f4b1a8c2a0b3b"
+}
+```
+
+You can then log in with the credentials you just created. The authentication process is already included in the frontend, so just navigate to the frontend's login page and log in with the credentials you just created.

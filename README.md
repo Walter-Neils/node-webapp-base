@@ -1,5 +1,9 @@
 # Webapp Template
 
+Walter Neils, 2024
+
+Note: This README is currently in a state of flux as I get documentation organized. Look in the `docs` directory for content which is more likely to be up to date.
+
 ## Organization
 
 Service source code is organized under the `source` directory. Docker files are under the `docker` directory, and further organized by service.
@@ -22,15 +26,25 @@ In each service source directory using NPM (e.g. `source/frontend`), run `npm in
 In the `docker/compose` directory, create a file called `.env` with the following contents:
 
 ```env
+# Host configurations
 MONGO_HOST=mongodb:27017
 MONGO_USERNAME=admin
 MONGO_PASSWORD=password
 REDIS_HOST=redis
+
+# Container Versions
+FRONTEND_VERSION=latest
+BACKEND_VERSION=latest
+ROUTER_VERSION=latest
+
+# Registry Location
+REGISTRY="" # Blank to use local images
+# REGISTRY=225807539721.dkr.ecr.us-east-1.amazonaws.com # AWS ECR Registry Example
 ```
 
 #### Values to Change
 
-If you're not hosting MongoDB and Redis in Docker, change the values of `MONGO_HOST` and `REDIS_HOST` to the appropriate values. You'll also need to change the values of `MONGO_USERNAME` and `MONGO_PASSWORD` if you're not using the default MongoDB credentials.
+If you're not hosting MongoDB and Redis in Docker, change the values of `MONGO_HOST` and `REDIS_HOST` to the appropriate values. You'll also need to change the values of `MONGO_USERNAME` and `MONGO_PASSWORD` if you're not using the default MongoDB credentials. I really shouldn't need to tell anyone that they shouldn't be using the default auth credentials in a production environment, but you never really know.
 
 ### Starting the data services
 
@@ -63,7 +77,7 @@ Just `CTRL+C` the dev proxy service and the services you're actively developing.
 
 ## Running a Production Environment
 
-You need a method to store and retrieve your services from (AWS ECR or the likes). Authentication & setup will vary. Once you have your services available, you'll need to edit the `.env` file in the `docker/compose` directory to point to the correct services. In the case of AWS ECR, you'll need to change the `CONTAINER_IMAGE_HOST` variable to point at the correct ECR repository. You'll also need to change the container image tag variables for each service, which are generally in the format `<service name>_IMAGE_TAG`. Once you've done this, you can run `docker-compose up <names of services>` from the `docker/compose` directory to start the application. You can then access the application at port 80/443 (HTTP/HTTPS). **DO NOT** host your own instance of the data services. Instead, use a managed service such as AWS RDS or AWS ElastiCache. You'll need to change the values of `MONGO_HOST` and `REDIS_HOST` in the `.env` file to point at the correct services. You don't want to lose all your data to a random accident. You also don't want to start these services on the production server as they're exposed to the internet.
+See the [deployment guide](docs/general/Deploying.md) for instructions on deploying to AWS.
 
 ## LFS (Large File Storage)
 

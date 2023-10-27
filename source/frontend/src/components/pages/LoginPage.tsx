@@ -23,16 +23,11 @@ export default function LoginPage(props: Record<string, never>)
     {
         (async () =>
         {
-            if (state === 'initializing' && userService.state === 'fulfilled')
+            if (state === 'initializing')
             {
-                if (userService.value === undefined)
-                {
-                    enqueueSnackbar('User service is not available', { variant: 'error' });
-                    return;
-                }
                 try
                 {
-                    const currentUser = await userService.value.getCurrentUser();
+                    const currentUser = await userService.getCurrentUser();
                     if (currentUser !== null)
                     {
                         setUsername(currentUser.displayName);
@@ -72,23 +67,11 @@ export default function LoginPage(props: Record<string, never>)
     const lockInUser = React.useCallback(async () =>
     {
         setIsWorking(true);
-        if (userService.state !== 'fulfilled')
-        {
-            enqueueSnackbar(`User service not loaded: ${userService.state}`, { variant: 'error' });
-            return;
-        }
-
-        const service = userService.value;
-        if (service === undefined)
-        {
-            enqueueSnackbar('User service is not available', { variant: 'error' });
-            return;
-        }
 
         try
         {
             setIsAvatarLoading(true);
-            const profile = await service.getUserProfile({
+            const profile = await userService.getUserProfile({
                 by: 'username',
                 username: username,
             });
@@ -119,20 +102,14 @@ export default function LoginPage(props: Record<string, never>)
         try
         {
             setIsWorking(true);
-            if (userService.state !== 'fulfilled')
-            {
-                enqueueSnackbar(`User service not loaded: ${userService.state}`, { variant: 'error' });
-                return;
-            }
-            const service = userService.value;
-            if (service === undefined)
+            if (userService === undefined)
             {
                 enqueueSnackbar('User service is not available', { variant: 'error' });
                 return;
             }
             try
             {
-                await service.authenticate(username, password);
+                await userService.authenticate(username, password);
                 enqueueSnackbar('Logged in', { variant: 'success' });
                 setIsLoggedIn(true);
                 setState('logged_in');
@@ -151,40 +128,13 @@ export default function LoginPage(props: Record<string, never>)
 
     const logout = React.useCallback(async () =>
     {
-        if (userService.state !== 'fulfilled')
-        {
-            enqueueSnackbar(`User service not loaded: ${userService.state}`, { variant: 'error' });
-            return;
-        }
-        if (userService.value === undefined)
-        {
-            enqueueSnackbar(`User service not available`, { variant: 'error' });
-            return;
-        }
-        await userService.value.logOut();
+        await userService.logOut();
         setUsername("");
         setPassword("");
         setAvatarSource('/logo.svg');
         setIsLoggedIn(false);
         setState('username');
     }, [ userService ]);
-
-    if (userService.state === 'pending')
-    {
-        return (
-            <>
-                <Box sx={ {
-                    // Center the box horizontally and vertically
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                } }>
-                    <CircularProgress />
-                </Box>
-            </>
-        );
-    }
 
     return (
         <>

@@ -99,12 +99,24 @@ const contexts = {
 
 type Capitalize<S extends string> = S extends `${infer First}${infer Rest}` ? `${Uppercase<First>}${Rest}` : S;
 
-export function useTextElements<KTextType extends TextType>(family: keyof typeof contexts, ...type: KTextType[]): Record<Capitalize<KTextType>, (props: TypographyProps) => JSX.Element>
+
+const TEXT_TYPES = [ 'title', 'heading', 'subheading', 'body', 'caption', 'button', 'overline', 'emphasis' ] as const;
+
+
+// This ensures that we've covered all the text types when we're using the context.
+// If you've got an error here, you need to edit the TEXT_TYPES array above to include the missing type.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const __ENSURE_TEXT_TYPES_ARE_COMPLETE_COMPILE_ERROR: Exclude<TextType, typeof TEXT_TYPES[ number ]> extends never ? true : false = true;
+
+export function useTextElements<KTextType extends TextType>(family: keyof typeof contexts): Record<Capitalize<KTextType>, (props: TypographyProps) => JSX.Element>
 {
     const context = contexts[ family ];
     // return (props: TypographyProps) => (<Typography { ...props } { ...context.typographyOverrideProps(type) } />);
     const result = {} as Record<Capitalize<KTextType>, (props: TypographyProps) => JSX.Element>;
-    for (const t of type)
+
+
+
+    for (const t of [ 'title', 'heading', 'subheading', 'body', 'caption', 'button', 'overline', 'emphasis' ] as const)
     {
         (result as {
             [ key: string ]: (props: TypographyProps) => JSX.Element;

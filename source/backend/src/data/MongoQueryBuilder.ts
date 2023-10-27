@@ -1,3 +1,4 @@
+import { AggregationCursor, Collection, ObjectId } from 'mongodb';
 import {
 	MongoCollections,
 	MongoDatabaseKeys,
@@ -32,6 +33,15 @@ class MongoQueryBuilder<CollectionType> {
 		});
 		return this as unknown as MongoQueryBuilder<
 			Omit<CollectionType, TFields>
+		>;
+	}
+
+	public narrow<TFields extends keyof CollectionType>(...fields: TFields[]) {
+		this.components.push({
+			$project: Object.fromEntries(fields.map(field => [field, 1])),
+		});
+		return this as unknown as MongoQueryBuilder<
+			Pick<CollectionType, TFields>
 		>;
 	}
 
@@ -149,6 +159,26 @@ class MongoQueryBuilder<CollectionType> {
 	public test(): CollectionType[] {
 		return [];
 	}
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	public applyAggregate(collection: Collection<any>) {
+		return collection.aggregate(
+			this.components,
+		) as AggregationCursor<CollectionType>;
+	}
+
+	public async applyFindOne(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		collection: Collection<any>,
+	): Promise<CollectionType | undefined> {
+		if (this.components.length === 0) {
+			throw new Error('No components in query');
+		} else if (this.components.length === 1) {
+			return collection.findOne(this.components[0]);
+		}
+
+		const results = await this.applyAggregate(collection).toArray();
+		return results[0];
+	}
 
 	public get _rawComponents() {
 		return this.components;
@@ -167,5 +197,9 @@ export function getMongoQueryBuilder<
 	TCollection extends keyof MongoCollections<TDatabase>,
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 >(database: TDatabase, collection: TCollection) {
-	return new MongoQueryBuilder<MongoCollections<TDatabase>[TCollection]>();
+	return new MongoQueryBuilder<
+		MongoCollections<TDatabase>[TCollection] & {
+			_id: ObjectId;
+		}
+	>();
 }

@@ -16,7 +16,7 @@ services:
       - "27017:27017"
 
   frontend:
-    image: frontend:latest
+    image: ${REGISTRY}frontend:${FRONTEND_VERSION}
     restart: always
     networks:
       default:
@@ -24,7 +24,7 @@ services:
           - frontend
 
   backend:
-    image: backend:latest
+    image: ${REGISTRY}backend:${BACKEND_VERSION}
     restart: always
     depends_on:
       - mongodb
@@ -38,7 +38,7 @@ services:
           - backend
 
   router:
-    image: router:latest
+    image: ${REGISTRY}router:${ROUTER_VERSION}
     restart: always
     ports:
       - "80:80"

@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import TypedEventEmitter from '../../clientShared/TypedEventListener';
 import { enqueueSnackbar } from 'notistack';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePromise } from '../../components/hooks/Promise';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -30,12 +30,12 @@ export function getMicroserviceEventEmitter<
 }
 
 const microserviceProviders: Partial<{
-	[TKey in keyof Microservices]: () => Promise<Microservices[TKey]>;
+	[TKey in keyof Microservices]: () => Microservices[TKey];
 }> = {};
 
 type MicroserviceManagerEvents = {
 	[TKey in keyof Microservices as `registered:${TKey}`]: [
-		loader: () => Promise<Microservices[TKey]>,
+		loader: () => Microservices[TKey],
 		key: TKey,
 	];
 } & {
@@ -45,15 +45,13 @@ type MicroserviceManagerEvents = {
 export const microserviceManagerEvents =
 	new TypedEventEmitter<MicroserviceManagerEvents>(new EventEmitter());
 
-export async function getMicroservice<TKey extends keyof Microservices>(
-	key: TKey,
-) {
+export function getMicroservice<TKey extends keyof Microservices>(key: TKey) {
 	try {
 		const provider = microserviceProviders[key];
 		if (!provider) {
-			return undefined;
+			throw new Error(`Microservice ${key} not registered`);
 		}
-		return await provider();
+		return provider();
 	} catch (e) {
 		enqueueSnackbar(`Failed to load microservice ${key}`, {
 			variant: 'error',
@@ -70,7 +68,7 @@ export function isMicroserviceRegistered<TKey extends keyof Microservices>(
 
 export function registerMicroservice<TKey extends keyof Microservices>(
 	key: TKey,
-	provider: () => Promise<Microservices[TKey]>,
+	provider: () => Microservices[TKey],
 ) {
 	if (microserviceProviders[key] !== undefined)
 		throw new Error(`Microservice ${key} already registered`);
@@ -94,7 +92,7 @@ export function unregisterMicroservice<TKey extends keyof Microservices>(
 export function useMicroservice<TKey extends keyof Microservices>(
 	target: TKey,
 ) {
-	const [service, setService] = usePromise(() => getMicroservice(target));
+	const [service, setService] = useState(getMicroservice(target));
 
 	useEffect(() => {
 		const listener = () => {
