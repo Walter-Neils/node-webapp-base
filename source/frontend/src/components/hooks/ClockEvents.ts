@@ -1,50 +1,59 @@
 import { useEffect, useRef } from 'react';
 
 export function useInterval(
-	callback: () => void | Promise<void>,
-	interval: number,
+	callback: () => any,
+	delay: number,
+	references?: any[],
 ) {
-	const savedCallback = useRef<() => void | Promise<void>>();
-
-	// Remember the latest callback.
+	// Mutate the callback to include the references when they change
+	const callbackRef = useRef(callback);
 	useEffect(() => {
-		savedCallback.current = callback;
-	}, [callback]);
+		callbackRef.current = callback;
+	}, [callback, ...(references || [])]);
 
 	// Set up the interval.
 	useEffect(() => {
 		function tick() {
-			if (savedCallback.current) {
-				savedCallback.current();
+			if (callbackRef.current) {
+				callbackRef.current();
 			}
 		}
 
-		if (interval !== null) {
-			const id = setInterval(tick, interval);
+		if (delay !== null) {
+			const id = setInterval(tick, delay);
 			return () => clearInterval(id);
 		}
-	}, [interval]);
+	}, [delay]);
+
+	// Return the callback ref so it can be mutated
+	return callbackRef;
 }
 
-export function useTimeout(callback: () => void, timeout: number) {
-	const savedCallback = useRef<() => void>();
-
-	// Remember the latest callback.
+export function useTimeout(
+	callback: () => any,
+	delay: number,
+	references?: any[],
+) {
+	// Mutate the callback to include the references when they change
+	const callbackRef = useRef(callback);
 	useEffect(() => {
-		savedCallback.current = callback;
-	}, [callback]);
+		callbackRef.current = callback;
+	}, [callback, ...(references || [])]);
 
 	// Set up the timeout.
 	useEffect(() => {
 		function tick() {
-			if (savedCallback.current) {
-				savedCallback.current();
+			if (callbackRef.current) {
+				callbackRef.current();
 			}
 		}
 
-		if (timeout !== null) {
-			const id = setTimeout(tick, timeout);
+		if (delay !== null) {
+			const id = setTimeout(tick, delay);
 			return () => clearTimeout(id);
 		}
-	}, [timeout]);
+	}, [delay]);
+
+	// Return the callback ref so it can be mutated
+	return callbackRef;
 }

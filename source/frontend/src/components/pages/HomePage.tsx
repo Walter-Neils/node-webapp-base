@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, Collapse } from "@mui/material";
 import { Microservices, getMicroservice, isMicroserviceRegistered, microserviceManagerEvents } from "../../server/microservices/Microservice";
 import Header from "../buildingblocks/Header";
 import BlogEntryPreview, { BlogEntryPreviewProps } from "../buildingblocks/blogging/BlogEntryPreview";
@@ -6,6 +6,7 @@ import { usePromise } from "../hooks/Promise";
 import { useEffect, useState } from "react";
 import { LoremIpsum } from "lorem-ipsum";
 import { useInterval } from "../hooks/ClockEvents";
+import { TransitionGroup } from "react-transition-group";
 export type HomePageProps = Record<string, never>;
 
 function useService<TKey extends keyof Microservices>(service: TKey)
@@ -72,7 +73,7 @@ function generateLoremIpsum()
             min: 4
         },
         wordsPerSentence: {
-            max: 16,
+            max: 8,
             min: 4
         }
     });
@@ -86,22 +87,21 @@ export default function HomePage()
     {
         setEntries((entries) =>
         {
-            const newEntries = [ ...entries ];
-            if (newEntries.length > 0)
-            {
-                newEntries.splice(0, 1);
-            }
-            newEntries.push({
+            const newEntries = [ {
                 title: 'Article Title',
                 authorName: 'Author Name',
                 authorImage: 'https://i.pravatar.cc/300',
                 verified: true,
                 date: new Date(),
                 content: generateLoremIpsum()
-            });
+            }, ...entries ];
+            if (newEntries.length > 3)
+            {
+                newEntries.pop();
+            }
             return newEntries;
         });
-    }, 1000);
+    }, 2500, [ entries ]);
     return (
         <>
             <Header title="Home" />
@@ -113,14 +113,18 @@ export default function HomePage()
                 height: '100%',
                 width: '100%'
             } }>
-                {
-                    entries.map((entry, index) =>
+                <TransitionGroup>
                     {
-                        return (
-                            <BlogEntryPreview key={ index } { ...entry } />
-                        );
-                    })
-                }
+                        entries.map((entry, index) =>
+                        {
+                            return (
+                                <Collapse key={ entry.content } timeout={ 500 } in={ true }>
+                                    <BlogEntryPreview { ...entry } />
+                                </Collapse>
+                            );
+                        })
+                    }
+                </TransitionGroup>
             </Box>
         </>
     );

@@ -1,8 +1,9 @@
-import { Avatar, Box, Card, Fade, Typography } from "@mui/material";
+import { Avatar, Box, Card, Fade, Skeleton, Typography } from "@mui/material";
 import { LoremIpsum } from "lorem-ipsum";
 import { ReactNode, useState } from "react";
 import CheckIcon from '@mui/icons-material/Check';
 import GppGoodIcon from '@mui/icons-material/GppGood';
+import { useTimeout } from "../../hooks/ClockEvents";
 export type BlogEntryPreviewProps = {
     title: string;
     authorName: string;
@@ -24,8 +25,38 @@ function SingleLine(props: { children: ReactNode | ReactNode[]; })
         </Box>
     );
 }
+
+function HorizontallyCentered(props: { children: ReactNode | ReactNode[]; })
+{
+    return (
+        <Box sx={ {
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+        } }>
+            { props.children }
+        </Box>
+    );
+}
+
+function VerticallyCentered(props: { children: ReactNode | ReactNode[]; })
+{
+    return (
+        <Box sx={ {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+        } }>
+            { props.children }
+        </Box>
+    );
+}
+
 export default function BlogEntryPreview(props: BlogEntryPreviewProps)
 {
+    const [ hasLoadedImage, setHasLoadedImage ] = useState(false);
     return (
         <Card sx={ {
             padding: '1rem',
@@ -41,9 +72,28 @@ export default function BlogEntryPreview(props: BlogEntryPreviewProps)
                 gridTemplateColumns: '1fr 20fr',
                 gridTemplateRows: '1fr',
             } }>
-                <Avatar src={ props.authorImage } alt={ props.authorName } sx={ {
-                    marginRight: '1rem',
-                } } />
+                <Fade in={ hasLoadedImage }>
+                    <Avatar alt={ `ER` } sx={ {
+                        marginRight: '1rem',
+                        display: hasLoadedImage ? undefined : 'none'
+                    } }>
+                        <img src={ props.authorImage } alt={ `ER` } style={ {
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                        } } onLoad={
+                            () =>
+                            {
+                                setHasLoadedImage(true);
+                            }
+
+                        } />
+                    </Avatar>
+                </Fade>
+                {
+                    !hasLoadedImage &&
+                    <Skeleton variant="circular" width={ 40 } height={ 40 } sx={ { marginRight: '1rem' } } />
+                }
                 <Box>
                     <SingleLine>
                         <Typography variant='body1' color='GrayText'>{ props.authorName }</Typography>
