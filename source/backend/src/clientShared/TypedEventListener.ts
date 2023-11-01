@@ -38,6 +38,10 @@ export default class TypedEventEmitter<
 		this._eventEmitter.emit(type, ...event);
 	}
 
+	emit<Key extends keyof TypeMap>(type: Key, ...event: TypeMap[Key]) {
+		this.dispatchEvent(type, ...event);
+	}
+
 	once<Key extends keyof TypeMap>(
 		type: Key,
 		listener: (...event: TypeMap[Key]) => void,

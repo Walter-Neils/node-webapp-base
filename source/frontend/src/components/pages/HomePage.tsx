@@ -1,9 +1,6 @@
-import { Box, Button, Input } from "@mui/material";
+import { Box } from "@mui/material";
 import Header from "../buildingblocks/Header";
 import { LoremIpsum } from "lorem-ipsum";
-import { useTextElements } from "../buildingblocks/text/TextScaleContext";
-import { notificationEvents } from "../../events/NotificationEvents";
-import { useGlobalValue } from "../hooks/GlobalValue";
 export type HomePageProps = Record<string, never>;
 
 function generateLoremIpsum()
