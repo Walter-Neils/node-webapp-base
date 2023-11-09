@@ -1,6 +1,8 @@
-import { Box } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import Header from "../buildingblocks/Header";
 import { LoremIpsum } from "lorem-ipsum";
+import { notificationEvents } from "../../events/NotificationEvents";
+import toast from "react-hot-toast";
 export type HomePageProps = Record<string, never>;
 
 function generateLoremIpsum()
@@ -31,7 +33,15 @@ export default function HomePage()
                 height: '100%',
                 width: '100%'
             } }>
-
+                <Button onClick={ () =>
+                {
+                    toast.promise(new Promise<void>((resolve, reject) => setTimeout(() => resolve(), 1000))
+                        , {
+                            loading: 'Generating Lorem Ipsum',
+                            success: 'Lorem Ipsum generated',
+                            error: 'Failed to generate Lorem Ipsum'
+                        });
+                } }>Test</Button>
             </Box>
         </>
     );

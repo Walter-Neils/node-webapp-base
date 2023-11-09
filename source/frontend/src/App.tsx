@@ -8,10 +8,11 @@ import { useTimeout } from './components/hooks/ClockEvents';
 import { ErrorBoundary } from './components/buildingblocks/conditionals/errorboundaries/ErrorBoundary';
 import { useTextElements } from './components/buildingblocks/text/TextScaleContext';
 import { themeEvents, themes } from './styling/ThemeManager';
+import { Toaster } from 'react-hot-toast';
 
 const HomePage = React.lazy(() => import('./components/pages/HomePage'));
 const LoginPage = React.lazy(() => import('./components/pages/LoginPage'));
-
+const PortfolioPage = React.lazy(() => import('./components/pages/PortfolioPage'));
 
 function EncaseSuspense(props: { children: React.ReactNode; })
 {
@@ -106,11 +107,13 @@ function App()
   return (
     <ThemeProvider theme={ theme }>
       <CssBaseline />
+      <Toaster />
       <SnackbarProvider maxSnack={ 3 }>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={ <EncaseSuspense><HomePage /></EncaseSuspense> } />
             <Route path="/login" element={ <EncaseSuspense><LoginPage /></EncaseSuspense> } />
+            <Route path="/portfolio" element={ <EncaseSuspense><PortfolioPage /></EncaseSuspense> } />
           </Routes>
         </BrowserRouter>
       </SnackbarProvider>
