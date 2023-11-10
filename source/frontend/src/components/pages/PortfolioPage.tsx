@@ -191,7 +191,7 @@ export default function PortfolioPage(props: Record<string, never>)
                         { lorem.generateParagraphs(10) }
                     </Body>
                 </Box>
-		</Box>
+          		</Box>
                 <Box sx={{
 		    display: 'flex',
 		    flexDirection: 'column',

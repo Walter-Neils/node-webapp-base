@@ -9,7 +9,8 @@ export const notificationEvents = new TypedEventEmitter<{
 }>(new EventEmitter());
 
 notificationEvents.addEventListener('newNotification', notification => {
-	enqueueSnackbar(`${notification.title}: ${notification.body}`, {
-		variant: notification.severity,
-	});
+  // Push notitication to toast
+  toast(notification.body, {
+    icon: notification.icon
+  });
 });

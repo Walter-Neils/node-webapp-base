@@ -15,7 +15,6 @@ declare module '../data/MongoConnectionManager.js' {
 		};
 	}
 }
-
 const userCollection = getTypedMongoCollection('users', 'auth');
 expressApp.post(
 	'/api/core/auth/login',

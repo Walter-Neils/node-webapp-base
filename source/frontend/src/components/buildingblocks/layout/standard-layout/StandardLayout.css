@@ -1,0 +1,12 @@
+.standard-layout-root {
+  width: 100vw;
+  height: 100vh;
+}
+
+.standard-layout-root > .standard-layout-header { 
+  width: 100%;
+}
+
+.standard-layout-root > .standard-layout-bodycontent {
+
+}

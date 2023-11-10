@@ -11,10 +11,12 @@ import { GenericNotification } from '../../clientShared/Notification';
 declare module './Microservice' {
 	interface Microservices {
 		userService: {
+      // Attempt to authenticate with the given username and password. 
 			authenticate: (
 				username: string,
 				password: string,
 			) => Promise<PublicUserProfile>;
+      // Fetch a user profile by username or userID
 			getUserProfile: (
 				filter:
 					| {
@@ -26,20 +28,27 @@ declare module './Microservice' {
 							userID: string;
 					  },
 			) => Promise<PublicUserProfile>;
+      // Get the current user, or null if the user isn't logged in. 
 			getCurrentUser: () => Promise<PublicUserProfile | null>;
-			logOut: () => Promise<void>;
+		  // Log out the current user.	
+      logOut: () => Promise<void>;
 		};
 	}
 	interface MicroserviceEventEmitterDefinitions {
 		userService: {
+      // Fired when the user logs in.
 			'auth:login': [
 				user: Awaited<
 					ReturnType<Microservices['userService']['authenticate']>
 				>,
 			];
+      // Fired when the user fails to log in.
 			'auth:loginfailed': [error: string];
+      // Fired when the user logs out.
 			'auth:logout': [];
+      // Fired when the service status changes.
 			'service:status': ['available' | 'unavailable'];
+      // Fired when a notification is received. LEGACY: WILL BE MOVED TO THE NOTIFICATION SERVICE. 
 			'service:notification': [notification: GenericNotification];
 		};
 	}

@@ -35,8 +35,12 @@ declare global {
 
 expressApp.use(cookieParser());
 expressApp.use(express.json());
+
+
+
 expressApp.use(
 	session({
+    // TODO: This is a placeholder value. Don't use it in production.
 		secret: 'keyboard cat',
 		resave: false,
 		saveUninitialized: false,

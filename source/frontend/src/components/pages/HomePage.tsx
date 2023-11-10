@@ -5,44 +5,20 @@ import { notificationEvents } from "../../events/NotificationEvents";
 import toast from "react-hot-toast";
 export type HomePageProps = Record<string, never>;
 
-function generateLoremIpsum()
-{
-    const lorem = new LoremIpsum({
-        sentencesPerParagraph: {
-            max: 8,
-            min: 4
-        },
-        wordsPerSentence: {
-            max: 8,
-            min: 4
-        }
-    });
-    return lorem.generateParagraphs(2);
-}
 
-export default function HomePage()
-{
-    return (
-        <>
-            <Header title="Home" />
-            <Box sx={ {
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                width: '100%'
-            } }>
-                <Button onClick={ () =>
-                {
-                    toast.promise(new Promise<void>((resolve, reject) => setTimeout(() => resolve(), 1000))
-                        , {
-                            loading: 'Generating Lorem Ipsum',
-                            success: 'Lorem Ipsum generated',
-                            error: 'Failed to generate Lorem Ipsum'
-                        });
-                } }>Test</Button>
-            </Box>
-        </>
-    );
+export default function HomePage() {
+  return (
+    <>
+      <Header title="Home" />
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        width: '100%'
+      }}>
+      </Box>
+    </>
+  );
 }
