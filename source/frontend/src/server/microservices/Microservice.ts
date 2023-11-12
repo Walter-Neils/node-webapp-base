@@ -1,6 +1,5 @@
 import EventEmitter from 'events';
 import TypedEventEmitter from '../../clientShared/TypedEventListener';
-import { enqueueSnackbar } from 'notistack';
 import React, { useEffect, useState } from 'react';
 import { usePromise } from '../../components/hooks/Promise';
 
@@ -49,18 +48,11 @@ export const microserviceManagerEvents =
 
 // Gets a microservice. If you're using this in a component, use the useMicroservice hook instead.
 export function getMicroservice<TKey extends keyof Microservices>(key: TKey) {
-  try {
-    const provider = microserviceProviders[key];
-    if (!provider) {
-      throw new Error(`Microservice ${key} not registered`);
-    }
-    return provider();
-  } catch (e) {
-    enqueueSnackbar(`Failed to load microservice ${key}`, {
-      variant: 'error',
-    });
-    throw e;
+  const provider = microserviceProviders[key];
+  if (!provider) {
+    throw new Error(`Microservice ${key} not registered`);
   }
+  return provider();
 }
 
 // Determines if a microservice is registered.

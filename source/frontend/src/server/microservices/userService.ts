@@ -1,4 +1,3 @@
-import { enqueueSnackbar } from 'notistack';
 import { StandardResponse } from '../../clientShared/StandardResponse';
 import { PublicUserProfile } from '../../clientShared/UserInterface';
 import './Microservice';
@@ -7,6 +6,7 @@ import {
 	registerMicroservice,
 } from './Microservice';
 import { GenericNotification } from '../../clientShared/Notification';
+import { notificationEvents } from '../../events/NotificationEvents';
 
 declare module './Microservice' {
 	interface Microservices {
@@ -54,11 +54,6 @@ declare module './Microservice' {
 	}
 }
 
-function displayNotification(notification: GenericNotification) {
-	enqueueSnackbar(notification.body, {
-		variant: notification.severity,
-	});
-}
 
 const events = getMicroserviceEventEmitter('userService');
 if (!events) throw new Error('events is undefined');
@@ -68,7 +63,7 @@ events.addEventListener('service:status', status => {
 });
 
 events.addEventListener('service:notification', notification => {
-	displayNotification(notification);
+  notificationEvents.dispatchEvent('newNotification', notification);
 });
 
 registerMicroservice('userService', () => {
